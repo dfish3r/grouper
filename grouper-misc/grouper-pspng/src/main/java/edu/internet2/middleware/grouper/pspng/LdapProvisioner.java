@@ -198,7 +198,7 @@ extends Provisioner<ConfigurationClass, LdapUser, LdapGroup>
     combinedLdapFilter.append("(|");
     
     for ( Subject subject : subjectsToFetch ) {
-      SearchFilter f = getUserLdapFilter(subject);
+      FilterTemplate f = getUserLdapFilter(subject);
       
       String filterString = f.format();
       
@@ -245,7 +245,7 @@ extends Provisioner<ConfigurationClass, LdapUser, LdapGroup>
     
     // For every subject we tried to bulk fetch, find the matching LdapObject that came back
     for ( Subject subjectToFetch : subjectsToFetch ) {
-      SearchFilter f = getUserLdapFilter(subjectToFetch);
+      FilterTemplate f = getUserLdapFilter(subjectToFetch);
           
       for ( LdapObject aFetchedLdapObject : searchResult ) {
         if ( aFetchedLdapObject.matchesLdapFilter(f)) {
@@ -269,7 +269,7 @@ extends Provisioner<ConfigurationClass, LdapUser, LdapGroup>
     return result;
   }
 
-  protected SearchFilter getUserLdapFilter(Subject subject) throws PspException  {
+  protected FilterTemplate getUserLdapFilter(Subject subject) throws PspException {
     String result = evaluateJexlExpression("UserSearchFilter", config.getUserSearchFilter(), subject, null, null, null);
     if ( StringUtils.isEmpty(result) )
       throw new RuntimeException("User searching requires userSearchFilter to be configured correctly");
@@ -278,7 +278,7 @@ extends Provisioner<ConfigurationClass, LdapUser, LdapGroup>
     String filterPieces[] = result.split("\\|\\|");
 
     // The first piece is either the entire filter or the filter template
-    SearchFilter filter = new SearchFilter(filterPieces[0]);
+    FilterTemplate filter = new FilterTemplate(filterPieces[0]);
 
     // If the filter is not using ldap-filter parameters, check its syntax
     if ( filterPieces.length == 1 ) {
@@ -320,11 +320,10 @@ extends Provisioner<ConfigurationClass, LdapUser, LdapGroup>
 
     ldif = sanityCheckDnAttributesOfLdif(ldif, "User-creation ldif for %s", personSubject);
 
-    Connection conn = getLdapSystem().getLdapConnection();
     try {
       Reader reader = new StringReader(ldif);
       LdifReader ldifReader = new LdifReader(reader);
-      SearchResult ldifResult = ldifReader.read();
+      SearchResponse ldifResult = ldifReader.read();
       LdapEntry ldifEntry = ldifResult.getEntry();
       
       // Update DN to be relative to userCreationBaseDn
@@ -347,9 +346,6 @@ extends Provisioner<ConfigurationClass, LdapUser, LdapGroup>
     } catch ( IOException e ) {
       LOG.error("Problem while processing ldif to create new user: {}", ldif, e);
       throw new PspException("LDIF problem creating user: %s", e.getMessage());
-    }
-    finally {
-      conn.close();
     }
   }
 
@@ -525,15 +521,15 @@ extends Provisioner<ConfigurationClass, LdapUser, LdapGroup>
       MultiMap attribute2ValuesToDel = new MultiValueMap();
       
       for ( ModifyRequest mod : modsForDn ) {
-        for ( AttributeModification attributeMod : mod.getAttributeModifications() ) {
+        for ( AttributeModification attributeMod : mod.getModifications() ) {
           LdapAttribute attribute = attributeMod.getAttribute();
           
-          switch (attributeMod.getAttributeModificationType() ) {
+          switch ( attributeMod.getOperation() ) {
             case ADD: 
               for ( String value : attribute.getStringValues() )
                 attribute2ValuesToAdd.put(attribute.getName(), value);
               break;
-            case REMOVE: 
+            case DELETE:
               for ( String value : attribute.getStringValues() )
                 attribute2ValuesToDel.put(attribute.getName(), value);
               break;
@@ -600,7 +596,7 @@ extends Provisioner<ConfigurationClass, LdapUser, LdapGroup>
           List<String> valueChunk = valueChunks.get(i);
           
           LdapAttribute attribute = new LdapAttribute(attributeName, GrouperUtil.toArray(valueChunk, String.class));
-          AttributeModification mod = new AttributeModification(AttributeModificationType.REMOVE, attribute);
+          AttributeModification mod = new AttributeModification(AttributeModification.Type.DELETE, attribute);
           
           // Grow our list of operations if necessary
           if ( coalescedOperations.size() <= i )
@@ -622,7 +618,7 @@ extends Provisioner<ConfigurationClass, LdapUser, LdapGroup>
           List<String> valueChunk = valueChunks.get(i);
           
           LdapAttribute attribute = new LdapAttribute(attributeName, GrouperUtil.toArray(valueChunk, String.class));
-          AttributeModification mod = new AttributeModification(AttributeModificationType.ADD, attribute);
+          AttributeModification mod = new AttributeModification(AttributeModification.Type.ADD, attribute);
           
           // Grow our list of operations if necessary
           if ( coalescedOperations.size() <= i )
@@ -632,23 +628,19 @@ extends Provisioner<ConfigurationClass, LdapUser, LdapGroup>
         }
       }
       
-      Connection conn = getLdapSystem().getLdapConnection();
-      try {
-        for ( List<AttributeModification> operation : coalescedOperations ) {
-          ModifyRequest mod = new ModifyRequest(dn, GrouperUtil.toArray(operation, AttributeModification.class));
-          try {
-            conn.open();
-            
-            LOG.info("Performing LDAP modification: {}", getLoggingSummary(mod) );
-            conn.getProviderConnection().modify(mod);
-          } catch (LdapException e) {
-            LOG.info("(THIS WILL BE RETRIED) Problem doing coalesced ldap modification: {} / {}: {}",
-                new Object[]{dn, mod, e.getMessage()});
-            throw new PspException("Coalesced LDAP Modification failed: %s",e.getMessage());
-          } 
+      ConnectionFactory connectionFactory = getLdapSystem().getLdapConnectionFactory();
+      for ( List<AttributeModification> operation : coalescedOperations ) {
+        ModifyRequest mod = new ModifyRequest(dn, GrouperUtil.toArray(operation, AttributeModification.class));
+        try {
+          LOG.info("Performing LDAP modification: {}", getLoggingSummary(mod) );
+          ModifyOperation modify = new ModifyOperation(connectionFactory);
+          modify.setThrowCondition(result -> !result.getResultCode().equals(ResultCode.SUCCESS));
+          modify.execute(mod);
+        } catch (LdapException e) {
+          LOG.info("(THIS WILL BE RETRIED) Problem doing coalesced ldap modification: {} / {}: {}",
+            new Object[]{dn, mod, e.getMessage()});
+          throw new PspException("Coalesced LDAP Modification failed: %s",e.getMessage());
         }
-      } finally {
-        conn.close();
       }
     }
   }
@@ -671,7 +663,7 @@ extends Provisioner<ConfigurationClass, LdapUser, LdapGroup>
       // Does the DN match?
       if ( dn.equalsIgnoreCase(modRequest.getDn()) ) {
         // Go through the attribute changes within the modRequest...
-        for ( AttributeModification attributeMod : modRequest.getAttributeModifications()) {
+        for ( AttributeModification attributeMod : modRequest.getModifications() ) {
           if ( attributeMod.getAttribute().getName().equalsIgnoreCase(attributeName) ) {
             for ( String modValue : attributeMod.getAttribute().getStringValues() ) {
               if ( modValue.equalsIgnoreCase(provisioningAttributeValue) ) {
@@ -741,14 +733,14 @@ extends Provisioner<ConfigurationClass, LdapUser, LdapGroup>
     // Put the first two DN components into buffer
     sb.append(LdapObject.getDnSummary(modForDn.getDn(), 2));
 
-    for ( AttributeModification attribute : modForDn.getAttributeModifications()) {
-      switch (attribute.getAttributeModificationType()) {
+    for ( AttributeModification attribute : modForDn.getModifications() ) {
+      switch (attribute.getOperation()) {
         case ADD: sb.append(String.format("[%s: +%d value(s)]",
                       attribute.getAttribute().getName(),
                       attribute.getAttribute().getStringValues().size()));
         break;
         
-        case REMOVE: sb.append(String.format("[%s: -%d value(s)]",
+        case DELETE: sb.append(String.format("[%s: -%d value(s)]",
             attribute.getAttribute().getName(),
             attribute.getAttribute().getStringValues().size()));
         break;
@@ -852,7 +844,7 @@ extends Provisioner<ConfigurationClass, LdapUser, LdapGroup>
 
     // Get the attribute information recorded in the first RDN
     LdapAttribute topRdnAttribute = new LdapAttribute(topRDN.getAttributeNames()[0]);
-    topRdnAttribute.addStringValue( topRDN.getAttributeValues());
+    topRdnAttribute.addStringValues(topRDN.getAttributeValues());
 
     String ldif = evaluateJexlExpression("OuTemplate", config.getOuCreationLdifTemplate(),
             null, null,
@@ -864,12 +856,12 @@ extends Provisioner<ConfigurationClass, LdapUser, LdapGroup>
     try {
       Reader reader = new StringReader(ldif);
       LdifReader ldifReader = new LdifReader(reader);
-      SearchResult ldifResult = ldifReader.read();
+      SearchResponse ldifResult = ldifReader.read();
       LdapEntry ldifEntry = ldifResult.getEntry();
 
       // Add the current attribute from the RDN if it was not already in the ldif template
       if ( ldifEntry.getAttribute( topRdnAttribute.getName() ) == null ) {
-        ldifEntry.addAttribute(topRdnAttribute);
+        ldifEntry.addAttributes(topRdnAttribute);
       }
 
       JobStatistics jobStatistics = this.getJobStatistics();

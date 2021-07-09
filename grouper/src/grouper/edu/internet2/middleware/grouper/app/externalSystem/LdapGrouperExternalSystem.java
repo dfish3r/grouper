@@ -51,7 +51,7 @@ public class LdapGrouperExternalSystem extends GrouperExternalSystem {
     String uiTestAttributeName = GrouperLoaderConfig.retrieveConfig().propertyValueString("ldap." + this.getConfigId() + ".uiTestAttributeName");
     String uiTestExpectedValue = GrouperLoaderConfig.retrieveConfig().propertyValueString("ldap." + this.getConfigId() + ".uiTestExpectedValue");
     
-    if (!LdapSessionUtils.ldapSession().testConnection(this.getConfigId())) {
+    if (!LdapSessionUtils.ldapSession().testConnectionFactory(this.getConfigId())) {
       return GrouperUtil.toList("Invalid config");
     }
     

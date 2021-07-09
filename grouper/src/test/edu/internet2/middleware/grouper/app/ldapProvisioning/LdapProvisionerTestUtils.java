@@ -77,7 +77,7 @@ public class LdapProvisionerTestUtils {
     for (int i = 0; i < 100; i++) {
       lastException = null;
       try {
-        if (LdapSessionUtils.ldapSession().testConnection("personLdap")) {
+        if (LdapSessionUtils.ldapSession().testConnectionFactory("personLdap")) {
           return;
         } else {
           GrouperUtil.sleep(1000);

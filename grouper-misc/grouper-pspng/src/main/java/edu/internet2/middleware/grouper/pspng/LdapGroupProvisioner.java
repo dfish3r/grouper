@@ -78,7 +78,7 @@ public class LdapGroupProvisioner extends LdapProvisioner<LdapGroupProvisionerCo
     else {
       String membershipAttributeValue = evaluateJexlExpression("MemberAttributeValue", config.getMemberAttributeValueFormat(), subject, ldapUser, grouperGroupInfo, ldapGroup);
       if ( membershipAttributeValue != null ) {
-        scheduleGroupModification(grouperGroupInfo, ldapGroup, AttributeModificationType.ADD, Arrays.asList(membershipAttributeValue));
+        scheduleGroupModification(grouperGroupInfo, ldapGroup, AttributeModification.Type.ADD, Arrays.asList(membershipAttributeValue));
         JobStatistics jobStatistics = this.getJobStatistics();
         if (jobStatistics != null) {
           jobStatistics.insertCount.addAndGet(1);
@@ -88,14 +88,14 @@ public class LdapGroupProvisioner extends LdapProvisioner<LdapGroupProvisionerCo
   }
 
 
-  protected void scheduleGroupModification(GrouperGroupInfo grouperGroupInfo, LdapGroup ldapGroup, AttributeModificationType modType, Collection<String> membershipValuesToChange) {
+  protected void scheduleGroupModification(GrouperGroupInfo grouperGroupInfo, LdapGroup ldapGroup, AttributeModification.Type modType, Collection<String> membershipValuesToChange) {
     String attributeName = config.getMemberAttributeName();
 
     for ( String value : membershipValuesToChange )
       // ADD/REMOVE <value> to/from <attribute> of <group>
       LOG.info("Will change LDAP: {} {} {} {} of {}",
           new Object[] {modType, value,
-          modType == AttributeModificationType.ADD ? "to" : "from",
+          modType == AttributeModification.Type.ADD ? "to" : "from",
           attributeName, ldapGroup});
 
     scheduleLdapModification(
@@ -132,7 +132,7 @@ public class LdapGroupProvisioner extends LdapProvisioner<LdapGroupProvisionerCo
       if (jobStatistics != null) {
         jobStatistics.deleteCount.addAndGet(1);
       }
-      scheduleGroupModification(grouperGroupInfo, ldapGroup, AttributeModificationType.REMOVE, Arrays.asList(membershipAttributeValue));
+      scheduleGroupModification(grouperGroupInfo, ldapGroup, AttributeModification.Type.DELETE, Arrays.asList(membershipAttributeValue));
     }
   }
 
@@ -229,7 +229,7 @@ public class LdapGroupProvisioner extends LdapProvisioner<LdapGroupProvisionerCo
                 new ModifyRequest(
                         ldapGroup.dn,
                         new AttributeModification(
-                                AttributeModificationType.REMOVE,
+                                AttributeModification.Type.DELETE,
                                 new LdapAttribute(config.getMemberAttributeName(),extraValues.toArray(new String[0])))),
                 config.isMemberAttributeCaseSensitive(),
                 true);
@@ -248,7 +248,7 @@ public class LdapGroupProvisioner extends LdapProvisioner<LdapGroupProvisionerCo
                 new ModifyRequest(
                         ldapGroup.dn,
                         new AttributeModification(
-                                AttributeModificationType.ADD,
+                                AttributeModification.Type.ADD,
                                 new LdapAttribute(config.getMemberAttributeName(),missingValues.toArray(new String[0])))),
                 config.isMemberAttributeCaseSensitive(),
                 true);
@@ -395,7 +395,6 @@ public class LdapGroupProvisioner extends LdapProvisioner<LdapGroupProvisionerCo
       ldif = ldif.concat(ldifForMemberships.toString());
     }
 
-    Connection conn = getLdapSystem().getLdapConnection();
     try {
       LOG.debug("{}: LDIF for new group (with partial DN): {}", getDisplayName(), ldif.replaceAll("\\n", "||"));
       LdapEntry ldifEntry = getLdapEntryFromLdif(ldif);
@@ -437,9 +436,6 @@ public class LdapGroupProvisioner extends LdapProvisioner<LdapGroupProvisionerCo
       LOG.error("IO problem while creating group: {}", ldif, e);
       throw new PspException("IO problem while creating group: %s", e.getMessage());
     }
-    finally {
-      conn.close();
-    }
   }
 
   /**
@@ -453,7 +449,7 @@ public class LdapGroupProvisioner extends LdapProvisioner<LdapGroupProvisionerCo
   private LdapEntry getLdapEntryFromLdif(String ldif) throws IOException {
     Reader reader = new StringReader(ldif);
     LdifReader ldifReader = new LdifReader(reader);
-    SearchResult ldifResult = ldifReader.read();
+    SearchResponse ldifResult = ldifReader.read();
     LdapEntry ldifEntry = ldifResult.getEntry();
 
     // Update DN to be relative to groupCreationBaseDn
@@ -506,7 +502,7 @@ public class LdapGroupProvisioner extends LdapProvisioner<LdapGroupProvisionerCo
       combinedLdapFilter.append("(|");
 
       for (GrouperGroupInfo grouperGroup : grouperGroupsToFetch) {
-        SearchFilter f = getGroupLdapFilter(grouperGroup);
+        FilterTemplate f = getGroupLdapFilter(grouperGroup);
         String groupFilterString = f.format();
 
         // Wrap the subject's filter in (...) if it doesn't start with (
@@ -545,7 +541,7 @@ public class LdapGroupProvisioner extends LdapProvisioner<LdapGroupProvisionerCo
 
       // For every group we tried to bulk fetch, find the matching LdapObject that came back
       for (GrouperGroupInfo groupToFetch : grouperGroupsToFetch) {
-        SearchFilter f = getGroupLdapFilter(groupToFetch);
+        FilterTemplate f = getGroupLdapFilter(groupToFetch);
 
         for (LdapObject aFetchedLdapObject : searchResult) {
           if (aFetchedLdapObject.matchesLdapFilter(f)) {
@@ -581,7 +577,7 @@ public class LdapGroupProvisioner extends LdapProvisioner<LdapGroupProvisionerCo
     Map<GrouperGroupInfo, LdapGroup> result = new HashMap<GrouperGroupInfo, LdapGroup>();
 
     for (GrouperGroupInfo grouperGroup : grouperGroupsToFetch) {
-      SearchFilter groupLdapFilter = null;
+      FilterTemplate groupLdapFilter = null;
       if (grouperGroup == null) {
         continue;
       }
@@ -640,14 +636,14 @@ public class LdapGroupProvisioner extends LdapProvisioner<LdapGroupProvisionerCo
   }
 
 
-  private SearchFilter getGroupLdapFilter(GrouperGroupInfo grouperGroup) throws PspException {
+  private FilterTemplate getGroupLdapFilter(GrouperGroupInfo grouperGroup) throws PspException {
     String result = evaluateJexlExpression("SingleGroupSearchFilter", config.getSingleGroupSearchFilter(), null, null, grouperGroup, null);
     if ( StringUtils.isEmpty(result) )
       throw new RuntimeException("Group searching requires singleGroupSearchFilter to be configured correctly");
 
     // If the filter contains '||', then this filter is requesting parameter substitution
     String filterPieces[] = result.split("\\|\\|");
-    SearchFilter filter = new SearchFilter(filterPieces[0]);
+    FilterTemplate filter = new FilterTemplate(filterPieces[0]);
     // If the filter is not using ldap-filter parameters, check its syntax
     if ( filterPieces.length == 1 ) {
       try {

@@ -1049,7 +1049,7 @@ public class LdapProvisioningTargetDao extends GrouperProvisionerTargetDaoBase {
         
         String parentDnString = parentDn.toString();
         try {
-          List<LdapEntry> childEntries = ldapSyncDaoForLdap.search(ldapSyncConfiguration.getLdapExternalSystemConfigId(), parentDnString, "(objectClass=*)", LdapSearchScope.ONELEVEL_SCOPE, new ArrayList<String>(), 1L);
+          List<LdapEntry> childEntries = ldapSyncDaoForLdap.search(ldapSyncConfiguration.getLdapExternalSystemConfigId(), parentDnString, "(objectClass=*)", LdapSearchScope.ONELEVEL_SCOPE, new ArrayList<String>(), 1);
           
           if (childEntries.size() > 0) {
             // done

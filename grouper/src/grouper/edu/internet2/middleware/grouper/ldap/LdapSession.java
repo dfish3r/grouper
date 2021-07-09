@@ -82,7 +82,7 @@ public interface LdapSession {
    * @return the list of results, never null
    */
   public abstract List<LdapEntry> list(final String ldapServerId, final String searchDn, 
-      final LdapSearchScope ldapSearchScope, final String filter, final String[] attributeNames, Long sizeLimit);
+      final LdapSearchScope ldapSearchScope, final String filter, final String[] attributeNames, Integer sizeLimit);
   
   /**
    * Get the following entries.
@@ -121,11 +121,11 @@ public interface LdapSession {
   public abstract boolean move(final String ldapServerId, String oldDn, String newDn);
   
   /**
-   * test a connection
+   * test a connection factory
    * @param ldapServerId
    * @return true if success, false or exception if not successful (error is in exception)
    */
-  public abstract boolean testConnection(final String ldapServerId);
+  public abstract boolean testConnectionFactory(final String ldapServerId);
   
   /**
    * modify attributes for an object.  this should be done in bulk, and if there is an error, throw it

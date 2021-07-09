@@ -12,7 +12,6 @@ import java.util.regex.Pattern;
 
 import org.apache.commons.lang.StringUtils;
 import org.ldaptive.AttributeModification;
-import org.ldaptive.AttributeModificationType;
 import org.ldaptive.LdapAttribute;
 import org.ldaptive.ModifyRequest;
 import org.ldaptive.SearchScope;
@@ -60,14 +59,14 @@ public class LdapAttributeProvisioner extends LdapProvisioner<LdapAttributeProvi
    * @param modType
    * @param valuesToChange
    */
-  protected void scheduleUserModification(LdapUser ldapUser, AttributeModificationType modType, Collection<String> valuesToChange) {
+  protected void scheduleUserModification(LdapUser ldapUser, AttributeModification.Type modType, Collection<String> valuesToChange) {
     String attributeName = config.getProvisionedAttributeName();
     
     for ( String value : valuesToChange )
       // ADD/REMOVE <value> to/from <attribute> of <user>
       LOG.info("Will change LDAP: {} {} {} {} of {}", 
           new Object[] {modType, value,
-          modType == AttributeModificationType.ADD ? "to" : "from",
+          modType == AttributeModification.Type.ADD ? "to" : "from",
           attributeName, ldapUser});
       
     scheduleLdapModification(
@@ -93,7 +92,7 @@ public class LdapAttributeProvisioner extends LdapProvisioner<LdapAttributeProvi
       jobStatistics.insertCount.addAndGet(1);
     }
 
-    scheduleUserModification(ldapUser, AttributeModificationType.ADD, Arrays.asList(attributeValue));
+    scheduleUserModification(ldapUser, AttributeModification.Type.ADD, Arrays.asList(attributeValue));
   }
 
   @Override
@@ -112,7 +111,7 @@ public class LdapAttributeProvisioner extends LdapProvisioner<LdapAttributeProvi
       jobStatistics.deleteCount.addAndGet(1);
     }
 
-    scheduleUserModification(ldapUser, AttributeModificationType.REMOVE, Arrays.asList(attributeValue));
+    scheduleUserModification(ldapUser, AttributeModification.Type.DELETE, Arrays.asList(attributeValue));
   }
 
   @Override
@@ -159,7 +158,7 @@ public class LdapAttributeProvisioner extends LdapProvisioner<LdapAttributeProvi
               new ModifyRequest(
                       extraMatch_dn,
                       new AttributeModification(
-                              AttributeModificationType.REMOVE,
+                              AttributeModification.Type.DELETE,
                               new LdapAttribute(config.getProvisionedAttributeName(), attributeValue))),
               true);
     }
@@ -177,7 +176,7 @@ public class LdapAttributeProvisioner extends LdapProvisioner<LdapAttributeProvi
               new ModifyRequest(
                       missingMatch_dn,
                       new AttributeModification(
-                              AttributeModificationType.ADD,
+                              AttributeModification.Type.ADD,
                               new LdapAttribute(config.getProvisionedAttributeName(), attributeValue))),
               true);
 
@@ -308,7 +307,7 @@ public class LdapAttributeProvisioner extends LdapProvisioner<LdapAttributeProvi
     stats.deleteCount.addAndGet(objectsWithAttribute_dnList.size());
 
     for ( String objectWithAttribute_dn : objectsWithAttribute_dnList )
-      scheduleUserModification(new LdapUser(objectWithAttribute_dn), AttributeModificationType.REMOVE, Arrays.asList(valueToPurge));
+      scheduleUserModification(new LdapUser(objectWithAttribute_dn), AttributeModification.Type.DELETE, Arrays.asList(valueToPurge));
   }
 
   

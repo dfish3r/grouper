@@ -92,7 +92,15 @@ public class LdapPEMSocketFactory {
    public SSLSocketFactory getSocketFactory() {
        return socketFactory;
    }
-      
+
+   public TrustManager[] getTrustManagers() {
+     return trustManagers;
+   }
+
+   public KeyManager[] getKeyManagers() {
+     return keyManagers;
+   }
+
    protected void initSocketFactory() {
        try {
            SSLContext sc = SSLContext.getInstance("TLS");

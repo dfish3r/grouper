@@ -14,18 +14,15 @@ import org.apache.commons.lang.StringUtils;
 import org.ldaptive.*;
 import org.ldaptive.ad.handler.RangeEntryHandler;
 import org.ldaptive.control.util.PagedResultsClient;
-import org.ldaptive.handler.HandlerResult;
-import org.ldaptive.handler.SearchEntryHandler;
+import org.ldaptive.handler.LdapEntryHandler;
 import org.ldaptive.pool.BlockingConnectionPool;
-import org.ldaptive.pool.PoolConfig;
-import org.ldaptive.pool.PoolException;
-import org.ldaptive.pool.SearchValidator;
 import org.ldaptive.props.BindConnectionInitializerPropertySource;
 import org.ldaptive.props.ConnectionConfigPropertySource;
 import org.ldaptive.props.DefaultConnectionFactoryPropertySource;
-import org.ldaptive.props.PoolConfigPropertySource;
+import org.ldaptive.props.PooledConnectionFactoryPropertySource;
 import org.ldaptive.props.SearchRequestPropertySource;
-import org.ldaptive.sasl.GssApiConfig;
+import org.ldaptive.sasl.Mechanism;
+import org.ldaptive.sasl.SaslConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +48,7 @@ public class LdapSystem {
   protected Properties _ldaptiveProperties = new Properties();
   
   private final boolean isActiveDirectory;
-  private BlockingConnectionPool ldapPool;
+  private PooledConnectionFactory ldapPool;
 
   protected boolean searchResultPagingEnabled_defaultValue = true;
   protected int searchResultPagingSize_default_value = 100;
@@ -75,8 +72,8 @@ public class LdapSystem {
   }
 
   
-  private BlockingConnectionPool buildLdapConnectionPool() throws PspException {
-    BlockingConnectionPool result;
+  private PooledConnectionFactory buildLdapConnectionFactory() throws PspException {
+    PooledConnectionFactory result;
   
     LOG.info("{}: Creating LDAP Pool", ldapSystemName);
     Properties ldaptiveProperties = getLdaptiveProperties();
@@ -112,69 +109,55 @@ public class LdapSystem {
     // I'm not sure if SaslRealm and/or SaslAuthorizationId can be used independently
     // Therefore, we'll initialize gssApiConfig when either one of them is used.
     // And, then, we'll attach the gssApiConfig to the binder if there is a gssApiConfig
-    GssApiConfig gssApiConfig = null;
+    SaslConfig saslConfig = null;
     String val = (String) ldaptiveProperties.get("org.ldaptive.saslRealm");
     if (!StringUtils.isBlank(val)) {
       LOG.info("Processing saslRealm");
-      if ( gssApiConfig == null )
-        gssApiConfig = new GssApiConfig();
-      gssApiConfig.setRealm(val);
-      
+      if ( saslConfig == null )
+        saslConfig = SaslConfig.builder().mechanism(Mechanism.GSSAPI).build();
+      saslConfig.setRealm(val);
     }
     
     val = (String) ldaptiveProperties.get("org.ldaptive.saslAuthorizationId");
     if (!StringUtils.isBlank(val)) {
       LOG.info("Processing saslAuthorizationId");
-      if ( gssApiConfig == null )
-        gssApiConfig = new GssApiConfig();
-      gssApiConfig.setAuthorizationId(val);
+      if ( saslConfig == null )
+        saslConfig = SaslConfig.builder().mechanism(Mechanism.GSSAPI).build();
+      saslConfig.setAuthorizationId(val);
     }
   
     // If there was a sasl/gssapi attribute, then save the gssApiConfig
-    if ( gssApiConfig != null ) {
+    if ( saslConfig != null ) {
       LOG.info("Setting gssApiConfig");
-      binder.setBindSaslConfig(gssApiConfig);
+      binder.setBindSaslConfig(saslConfig);
     }
     
-    DefaultConnectionFactory connectionFactory = new DefaultConnectionFactory();
-    DefaultConnectionFactoryPropertySource dcfSource = new DefaultConnectionFactoryPropertySource(connectionFactory, ldaptiveProperties);
+    PooledConnectionFactory connectionFactory = new PooledConnectionFactory();
+    PooledConnectionFactoryPropertySource dcfSource = new PooledConnectionFactoryPropertySource(connectionFactory, ldaptiveProperties);
     dcfSource.initialize();
 
     // Test the ConnectionFactory before error messages are buried behind the pool
-    Connection conn = connectionFactory.getConnection();
-    performTestLdapRead(conn);
+    performTestLdapRead(connectionFactory);
     
     /////////////
     // PoolConfig
     
-    PoolConfig ldapPoolConfig = new PoolConfig();
-    PoolConfigPropertySource pcps = new PoolConfigPropertySource(ldapPoolConfig, ldaptiveProperties);
-    pcps.initialize();
-
     // Make sure some kind of validation is turned on
-    if ( !ldapPoolConfig.isValidateOnCheckIn() &&
-         !ldapPoolConfig.isValidateOnCheckOut() &&
-         !ldapPoolConfig.isValidatePeriodically() ) {
+    if ( !connectionFactory.isValidateOnCheckIn() &&
+         !connectionFactory.isValidateOnCheckOut() &&
+         !connectionFactory.isValidatePeriodically() ) {
       LOG.debug("{}: Using default onCheckOut ldap-connection validation", ldapSystemName);
-      ldapPoolConfig.setValidateOnCheckOut(true);
+      connectionFactory.setValidateOnCheckOut(true);
     }
       
-    result = new BlockingConnectionPool(ldapPoolConfig, connectionFactory);
-    result.setValidator(new SearchValidator());
-    result.initialize();
+    connectionFactory.setValidator(new SearchConnectionValidator());
+    connectionFactory.initialize();
     
     ////////////
     // Test the connection obtained from pool
-    try {
-      conn = result.getConnection();
-      performTestLdapRead(conn);
-    } catch (LdapException e) {
-      LOG.error("Problem while testing ldap pool", e);
-      throw new PspException("Problem testing ldap pool: %s", e.getMessage());
-    }
-    
-    
-    return result;
+    performTestLdapRead(connectionFactory);
+
+    return connectionFactory;
   }
 
   public void log(LdapEntry ldapEntry, String ldapEntryDescriptionFormat, Object... ldapEntryDescriptionArgs)  {
@@ -212,9 +195,9 @@ public class LdapSystem {
       StringBuilder sb = new StringBuilder();
       sb.append(String.format("dn=%s|", modifyRequest.getDn()));
 
-      for (AttributeModification mod : modifyRequest.getAttributeModifications()) {
+      for (AttributeModification mod : modifyRequest.getModifications()) {
         sb.append(String.format("%s %d %s values|",
-                mod.getAttributeModificationType(), mod.getAttribute().size(), mod.getAttribute().getName()));
+                mod.getOperation(), mod.getAttribute().size(), mod.getAttribute().getName()));
       }
       LOG.info("{}: {} Mod Summary: {}", ldapSystemName, ldapEntryDescription, sb.toString());
     }
@@ -223,53 +206,39 @@ public class LdapSystem {
   }
 
 
-  protected void performTestLdapRead(Connection conn) throws PspException {
+  protected void performTestLdapRead(ConnectionFactory connectionFactory) throws PspException {
     LOG.info("{}: Performing test read of directory root", ldapSystemName);
-    SearchExecutor searchExecutor = new SearchExecutor();
-    SearchRequestPropertySource srSource = new SearchRequestPropertySource(searchExecutor, getLdaptiveProperties());
+    SearchRequest searchRequest = new SearchRequest();
+    SearchRequestPropertySource srSource = new SearchRequestPropertySource(searchRequest, getLdaptiveProperties());
     srSource.initialize();
+    searchRequest.setBaseDn("");
+    searchRequest.setFilter("(objectclass=*)");
+    searchRequest.setSearchScope(SearchScope.OBJECT);
 
-    SearchRequest read = new SearchRequest("", "objectclass=*");
-    read.setSearchScope(SearchScope.OBJECT);
+    SearchOperation searchOp = new SearchOperation(connectionFactory);
 
     // Turn on attribute-value paging if this is an active directory target
     if ( isActiveDirectory() )
-      read.setSearchEntryHandlers(new RangeEntryHandler());
- 
+      searchOp.setSearchResultHandlers(new RangeEntryHandler());
+
     try {
-      conn.open();
-      SearchOperation searchOp = new SearchOperation(conn);
-      
-      Response<SearchResult> response = searchOp.execute(read);
-      SearchResult searchResult = response.getResult();
-    
-      LdapEntry searchResultEntry = searchResult.getEntry();
+      SearchResponse response = searchOp.execute(searchRequest);
+      LdapEntry searchResultEntry = response.getEntry();
       log(searchResultEntry, "Ldap test success");
     }
     catch (LdapException e) {
       LOG.error("Ldap problem",e);
       throw new PspException("Problem testing ldap connection: %s", e.getMessage());
     }
-    finally {
-      conn.close();
-    }
   }
 
   
   
-  public BlockingConnectionPool getLdapPool() throws PspException {
+  public synchronized ConnectionFactory getLdapConnectionFactory() throws PspException {
     if ( ldapPool != null )
       return ldapPool;
-    
-    // We don't have a pool setup yet. Synchronize so we're sure we only make one pool.
-    synchronized(this) {
-      // Check if another thread has created our pool while we were waiting for the semaphore
-      if ( ldapPool != null )
-        return ldapPool;
-      
-     ldapPool = buildLdapConnectionPool();
-    }
-  
+
+    ldapPool = buildLdapConnectionFactory();
     return ldapPool;
   }
 
@@ -345,31 +314,20 @@ public class LdapSystem {
     return GrouperUtil.booleanValue(searchResultPagingEnabled, searchResultPagingEnabled_defaultValue);
   }
 
-  
-  
-  protected Connection getLdapConnection() throws PspException {
-    BlockingConnectionPool pool = getLdapPool();
-    try {
-      Connection conn = pool.getConnection();
-      return conn;
-    } catch (PoolException e) {
-      LOG.error("LDAP Pool Exception", e);
-      throw new PspException("Problem connecting to ldap server %s: %s",pool, e.getMessage());
-    }
-  }
-  
-  
+
 
   /**
-   * Returns ldaptive search executor configured according to properties
+   * Returns ldaptive search operation configured according to properties
    * @return
    */
-  public SearchExecutor getSearchExecutor() {
-    SearchExecutor searchExecutor = new SearchExecutor();
-    SearchRequestPropertySource srSource = new SearchRequestPropertySource(searchExecutor, getLdaptiveProperties());
+  public SearchOperation getSearchOperation() {
+    SearchRequest searchRequest = new SearchRequest();
+    SearchRequestPropertySource srSource = new SearchRequestPropertySource(searchRequest, getLdaptiveProperties());
     srSource.initialize();
-    
-    return searchExecutor;
+
+    SearchOperation searchOperation = new SearchOperation();
+    searchOperation.setRequest(searchRequest);
+    return searchOperation;
   }
 
   
@@ -377,11 +335,12 @@ public class LdapSystem {
   protected void performLdapAdd(LdapEntry entryToAdd) throws PspException {
     log(entryToAdd, "Creating LDAP object");
 
-    Connection conn = getLdapConnection();
+    ConnectionFactory connectionFactory = getLdapConnectionFactory();
     try {
       // Actually ADD the object
-      conn.open();
-      conn.getProviderConnection().add(new AddRequest(entryToAdd.getDn(), entryToAdd.getAttributes()));
+      AddOperation add = new AddOperation(connectionFactory);
+      add.setThrowCondition(result -> !result.getResultCode().equals(ResultCode.SUCCESS));
+      add.execute(new AddRequest(entryToAdd.getDn(), entryToAdd.getAttributes()));
     } catch (LdapException e) {
       if ( e.getResultCode() == ResultCode.ENTRY_ALREADY_EXISTS ) {
         LOG.warn("{}: Skipping LDAP ADD because object already existed: {}", ldapSystemName, entryToAdd.getDn());
@@ -392,10 +351,6 @@ public class LdapSystem {
         throw new PspException("LDAP problem creating object: %s", e.getMessage());
       }
     }
-    finally {
-      conn.close();
-    }
-  
   }
   
   
@@ -403,19 +358,16 @@ public class LdapSystem {
   protected void performLdapDelete(String dnToDelete) throws PspException {
     LOG.info("{}: Deleting LDAP object: {}", ldapSystemName, dnToDelete);
     
-    Connection conn = getLdapConnection();
+    ConnectionFactory connectionFactory = getLdapConnectionFactory();
     try {
       // Actually DELETE the account
-      conn.open();
-      conn.getProviderConnection().delete(new DeleteRequest(dnToDelete));
+      DeleteOperation delete = new DeleteOperation(connectionFactory);
+      delete.setThrowCondition(result -> !result.getResultCode().equals(ResultCode.SUCCESS));
+      delete.execute(new DeleteRequest(dnToDelete));
     } catch (LdapException e) {
       LOG.error("Problem while deleting ldap object: {}", dnToDelete, e);
       throw new PspException("LDAP problem deleting object: %s", e.getMessage());
     }
-    finally {
-      conn.close();
-    }
-  
   }
 
   public void performLdapModify(ModifyRequest mod, boolean valuesAreCaseSensitive) throws PspException {
@@ -434,10 +386,11 @@ public class LdapSystem {
   public void performLdapModify(ModifyRequest mod, boolean valuesAreCaseSensitive, boolean retryIfFails) throws PspException {
     log(mod, "Performing ldap mod (%s retry)", retryIfFails ? "with" : "without");
 
-    Connection conn = getLdapConnection();
+    ConnectionFactory connectionFactory = getLdapConnectionFactory();
     try {
-      conn.open();
-      conn.getProviderConnection().modify(mod);
+      ModifyOperation modify = new ModifyOperation(connectionFactory);
+      modify.setThrowCondition(result -> !result.getResultCode().equals(ResultCode.SUCCESS));
+      modify.execute(mod);
     } catch (LdapException e) {
 
       // Abort with Exception if retries are disabled
@@ -456,23 +409,23 @@ public class LdapSystem {
       //
       //   If the object doesn't already match, then it was a real ldap failure... there
       //   is no way to simplify it or otherwise retry it
-      if ( mod.getAttributeModifications().length == 1 &&
-           mod.getAttributeModifications()[0].getAttribute().getStringValues().size() == 1 ) {
-        AttributeModification modification = mod.getAttributeModifications()[0];
+      if ( mod.getModifications().length == 1 &&
+           mod.getModifications()[0].getAttribute().getStringValues().size() == 1 ) {
+        AttributeModification modification = mod.getModifications()[0];
 
         boolean attributeMatches = performLdapComparison(mod.getDn(), modification.getAttribute());
 
-        if ( attributeMatches && modification.getAttributeModificationType() == AttributeModificationType.ADD ) {
+        if ( attributeMatches && modification.getOperation() == AttributeModification.Type.ADD ) {
           LOG.info("{}: Change not necessary: System already had attribute value", ldapSystemName);
           return;
         }
-        else if ( !attributeMatches && modification.getAttributeModificationType() == AttributeModificationType.REMOVE ) {
+        else if ( !attributeMatches && modification.getOperation() == AttributeModification.Type.DELETE ) {
           LOG.info("{}: Change not necessary: System already had attribute value removed", ldapSystemName);
           return;
         }
         else {
           LOG.error("{}: Single-attribute-value Ldap mod-{} failed when Ldap server {} already have {}={}. Mod that failed: {}",
-                  ldapSystemName, modification.getAttributeModificationType().toString().toLowerCase(),
+                  ldapSystemName, modification.getOperation().toString().toLowerCase(),
                   attributeMatches ? "does" : "does not",
                   modification.getAttribute().getName(), modification.getAttribute().getStringValue(),
                   mod,
@@ -487,7 +440,7 @@ public class LdapSystem {
 
       // Gather up the attributes that were modified so we can read them from server
       Set<String> attributeNames = new HashSet<>();
-      for ( AttributeModification attributeMod : mod.getAttributeModifications()) {
+      for ( AttributeModification attributeMod : mod.getModifications()) {
         attributeNames.add(attributeMod.getAttribute().getName());
       }
 
@@ -499,27 +452,27 @@ public class LdapSystem {
       log(currentLdapObject.ldapEntry, "Data already on ldap server");
 
       // Go back through the requested mods and see if they are redundant
-      for ( AttributeModification attributeMod : mod.getAttributeModifications()) {
+      for ( AttributeModification attributeMod : mod.getModifications()) {
         String attributeName = attributeMod.getAttribute().getName();
 
         LOG.info("{}: Summary: Comparing modification of {} to what is already in LDAP: {}/{} Values",
                 ldapSystemName,
                 attributeName,
-                attributeMod.getAttributeModificationType(),
+                attributeMod.getOperation(),
                 attributeMod.getAttribute().size());
         LOG.debug("{}: Details: Comparing modification of {} to what is already in LDAP: {}/{}",
                 ldapSystemName,
                 attributeName,
-                attributeMod.getAttributeModificationType(),
+                attributeMod.getOperation(),
                 attributeMod.getAttribute());
 
         Collection<String> currentValues = currentLdapObject.getStringValues(attributeName);
         Collection<String> modifyValues  = attributeMod.getAttribute().getStringValues();
 
         LOG.info("{}: Comparing Attribute {}. #Values on server already {}. #Values in mod/{}: {}",
-          ldapSystemName, attributeName, currentValues.size(), attributeMod.getAttributeModificationType(), modifyValues.size());
+          ldapSystemName, attributeName, currentValues.size(), attributeMod.getOperation(), modifyValues.size());
 
-        switch (attributeMod.getAttributeModificationType()) {
+        switch (attributeMod.getOperation()) {
           case ADD:
             // See if any modifyValues are missing from currentValues
             //
@@ -537,14 +490,14 @@ public class LdapSystem {
 
             for ( String valueToChange : valuesNotAlreadyOnServer ) {
               performLdapModify( new ModifyRequest( mod.getDn(),
-                      new AttributeModification(AttributeModificationType.ADD,
+                      new AttributeModification(AttributeModification.Type.ADD,
                               new LdapAttribute(attributeName, valueToChange))),
                       valuesAreCaseSensitive,false);
             }
             break;
 
-          case REMOVE:
-            // For Mod.REMOVE, not specifying any values means to remove them all
+          case DELETE:
+            // For Mod.DELETE, not specifying any values means to remove them all
             if ( modifyValues.size() == 0 ) {
               modifyValues.addAll(currentValues);
             }
@@ -564,7 +517,7 @@ public class LdapSystem {
 
             for (String valueToChange : valuesStillOnServer) {
               performLdapModify(new ModifyRequest(mod.getDn(),
-                              new AttributeModification(AttributeModificationType.REMOVE,
+                              new AttributeModification(AttributeModification.Type.DELETE,
                                       new LdapAttribute(attributeName, valueToChange))),
                       valuesAreCaseSensitive,false);
             }
@@ -586,7 +539,7 @@ public class LdapSystem {
 
             for (String valueToChange : extraValuesOnServer) {
               performLdapModify(new ModifyRequest(mod.getDn(),
-                              new AttributeModification(AttributeModificationType.REMOVE,
+                              new AttributeModification(AttributeModification.Type.DELETE,
                                       new LdapAttribute(attributeName, valueToChange))),
                       valuesAreCaseSensitive,false);
             }
@@ -599,15 +552,12 @@ public class LdapSystem {
 
             for ( String valueToChange : missingValuesOnServer ) {
               performLdapModify( new ModifyRequest( mod.getDn(),
-                              new AttributeModification(AttributeModificationType.ADD,
+                              new AttributeModification(AttributeModification.Type.ADD,
                                       new LdapAttribute(attributeName, valueToChange))),
                       valuesAreCaseSensitive, false);
             }
         }
       }
-    }
-    finally {
-      conn.close();
     }
   }
 
@@ -615,49 +565,42 @@ public class LdapSystem {
     LOG.info("{}: Performaing Ldap comparison operation: {} on {}",
             new Object[]{ldapSystemName, attribute, LdapObject.getDnSummary(dn,2)});
 
-    Connection conn = getLdapConnection();
+    ConnectionFactory connectionFactory = getLdapConnectionFactory();
     try {
-      try {
-        conn.open();
-        CompareOperation compare = new CompareOperation(conn);
+      CompareOperation compare = new CompareOperation(connectionFactory);
+      compare.setThrowCondition(result ->
+        !result.getResultCode().equals(ResultCode.COMPARE_TRUE) &&
+          !result.getResultCode().equals(ResultCode.COMPARE_FALSE));
+      CompareResponse result = compare.execute(new CompareRequest(dn, attribute.getName(), attribute.getStringValue()));
+      return result.isTrue();
 
-        boolean result = compare.execute(new CompareRequest(dn, attribute)).getResult();
-        return result;
+    } catch (LdapException ldapException) {
+      ResultCode resultCode = ldapException.getResultCode();
 
-      } catch (LdapException ldapException) {
-        ResultCode resultCode = ldapException.getResultCode();
+      // A couple errors mean that object does not match attribute values
+      if (resultCode == ResultCode.NO_SUCH_OBJECT || resultCode == ResultCode.NO_SUCH_ATTRIBUTE) {
+        return false;
+      } else {
+        LOG.error("{}: Error performing compare operation: {}",
+          new Object[]{ldapSystemName, attribute, ldapException});
 
-        // A couple errors mean that object does not match attribute values
-        if (resultCode == ResultCode.NO_SUCH_OBJECT || resultCode == ResultCode.NO_SUCH_ATTRIBUTE) {
-          return false;
-        } else {
-          LOG.error("{}: Error performing compare operation: {}",
-                  new Object[]{ldapSystemName, attribute, ldapException});
-
-          throw new PspException("LDAP problem performing ldap comparison: %s", ldapException.getMessage());
-        }
+        throw new PspException("LDAP problem performing ldap comparison: %s", ldapException.getMessage());
       }
     }
-    finally {
-      conn.close();
-    }
-
   }
 
 
   void performLdapModifyDn(ModifyDnRequest mod) throws PspException {
     LOG.info("{}: Performing Ldap mod-dn operation: {}", ldapSystemName, mod);
 
-    Connection conn = getLdapConnection();
+    ConnectionFactory connectionFactory = getLdapConnectionFactory();
     try {
-      conn.open();
-      conn.getProviderConnection().modifyDn(mod);
+      ModifyDnOperation modifyDn = new ModifyDnOperation(connectionFactory);
+      modifyDn.setThrowCondition(result -> !result.getResultCode().equals(ResultCode.SUCCESS));
+      modifyDn.execute(mod);
     } catch (LdapException e) {
       LOG.error("Problem while modifying dn of ldap object: {}", mod, e);
       throw new PspException("LDAP problem modifying dn of ldap object: %s", e.getMessage());
-    }
-    finally {
-      conn.close();
     }
   }
 
@@ -675,26 +618,23 @@ public class LdapSystem {
   protected LdapObject performLdapRead(String dn, String... attributes) throws PspException {
     LOG.debug("Doing ldap read: {} attributes {}", dn, Arrays.toString(attributes));
     
-    Connection conn = getLdapConnection();
+    ConnectionFactory connectionFactory = getLdapConnectionFactory();
     try {
-      conn.open();
-  
-      SearchRequest read = new SearchRequest(dn, "objectclass=*");
+      SearchRequest read = new SearchRequest(dn, "(objectclass=*)");
       read.setSearchScope(SearchScope.OBJECT);
       read.setReturnAttributes(attributes);
-      
+
+      SearchOperation searchOp = new SearchOperation(connectionFactory);
+      searchOp.setThrowCondition(result -> !result.getResultCode().equals(ResultCode.SUCCESS));
+
       // Turn on attribute-value paging if this is an active directory target
       if ( isActiveDirectory() ) {
         LOG.info("Active Directory: Searching with Ldap RangeEntryHandler");
-        read.setSearchEntryHandlers(new RangeEntryHandler());
+        searchOp.setSearchResultHandlers(new RangeEntryHandler());
       }
 
-      SearchOperation searchOp = new SearchOperation(conn);
-      
-      Response<SearchResult> response = searchOp.execute(read);
-      SearchResult searchResult = response.getResult();
-      
-      LdapEntry result = searchResult.getEntry();
+      SearchResponse response = searchOp.execute(read);
+      LdapEntry result = response.getEntry();
       
       if ( result == null ) {
         LOG.debug("{}: Object does not exist: {}", ldapSystemName, dn);
@@ -713,10 +653,6 @@ public class LdapSystem {
       LOG.error("Problem during ldap read {}", dn, e);
       throw new PspException("Problem during LDAP read: %s", e.getMessage());
     }
-    finally {
-      if ( conn != null )
-        conn.close();
-    }
   }
 
   /**
@@ -726,39 +662,42 @@ public class LdapSystem {
    * @return
    * @throws LdapException
    */
-  protected void performLdapSearchRequest(int approximateNumResultsExpected, SearchRequest request, SearchEntryHandler callback) throws PspException {
+  protected void performLdapSearchRequest(int approximateNumResultsExpected, SearchRequest request, LdapEntryHandler callback) throws PspException {
     LOG.debug("Doing ldap search: {} / {} / {}", 
-        new Object[] {request.getSearchFilter(), request.getBaseDn(), Arrays.toString(request.getReturnAttributes())});
-    List<LdapObject> result = new ArrayList<LdapObject>();
-    
-    Connection conn = getLdapConnection();
+        new Object[] {request.getFilter(), request.getBaseDn(), Arrays.toString(request.getReturnAttributes())});
+
+    ConnectionFactory connectionFactory = getLdapConnectionFactory();
     try {
-      conn.open();
-      
-      // Turn on attribute-value paging if this is an active directory target
-      if ( isActiveDirectory() ) {
-        LOG.debug("Using attribute-value paging");
-        request.setSearchEntryHandlers(
-                new RangeEntryHandler(),
-                new LdapSearchProgressHandler(approximateNumResultsExpected, LOG, "Performing ldap search"),
-                callback);
-      }
-      else {
-        LOG.debug("Not using attribute-value paging");
-        request.setSearchEntryHandlers(
-                new LdapSearchProgressHandler(approximateNumResultsExpected, LOG, "Performing ldap search"),
-                callback);
-      }
-      
       // Perform search. This is slightly different if paging is enabled or not.
       if ( isSearchResultPagingEnabled() ) {
-        PagedResultsClient client = new PagedResultsClient(conn, getSearchResultPagingSize());
+        PagedResultsClient client = new PagedResultsClient(connectionFactory, getSearchResultPagingSize());
+        // Turn on attribute-value paging if this is an active directory target
+        if ( isActiveDirectory() ) {
+          LOG.debug("Using attribute-value paging");
+          client.setSearchResultHandlers(new RangeEntryHandler());
+        } else {
+          LOG.debug("Not using attribute-value paging");
+        }
+        client.setEntryHandlers(
+          new LdapSearchProgressHandler(approximateNumResultsExpected, LOG, "Performing ldap search"),
+          callback);
         LOG.debug("Using ldap search-result paging");
         client.executeToCompletion(request);
       }
       else {
         LOG.debug("Not using ldap search-result paging");
-        SearchOperation searchOp = new SearchOperation(conn);
+        SearchOperation searchOp = new SearchOperation(connectionFactory);
+        searchOp.setThrowCondition(result -> !result.getResultCode().equals(ResultCode.SUCCESS));
+        // Turn on attribute-value paging if this is an active directory target
+        if ( isActiveDirectory() ) {
+          LOG.debug("Using attribute-value paging");
+          searchOp.setSearchResultHandlers(new RangeEntryHandler());
+        } else {
+          LOG.debug("Not using attribute-value paging");
+        }
+        searchOp.setEntryHandlers(
+          new LdapSearchProgressHandler(approximateNumResultsExpected, LOG, "Performing ldap search"),
+          callback);
         searchOp.execute(request);
       }
       
@@ -776,17 +715,13 @@ public class LdapSystem {
       LOG.error("Runtime problem during ldap search {}", request, e);
       throw e;
     }
-    finally {
-      if ( conn != null )
-        conn.close();
-    }
   }
 
 
 
   public List<LdapObject> performLdapSearchRequest(int approximateNumResultsExpected, String searchBaseDn, SearchScope scope, Collection<String> attributesToReturn, String filterTemplate, Object... filterParams)
   throws PspException {
-    SearchFilter filter = new SearchFilter(filterTemplate);
+    FilterTemplate filter = new FilterTemplate(filterTemplate);
 
     for (int i=0; i<filterParams.length; i++) {
       filter.setParameter(i, filterParams[i]);
@@ -796,7 +731,7 @@ public class LdapSystem {
   }
 
 
-  public List<LdapObject> performLdapSearchRequest(int approximateNumResultsExpected, String searchBaseDn, SearchScope scope, Collection<String> attributesToReturn, SearchFilter filter)
+  public List<LdapObject> performLdapSearchRequest(int approximateNumResultsExpected, String searchBaseDn, SearchScope scope, Collection<String> attributesToReturn, FilterTemplate filter)
           throws PspException {
     LOG.debug("Running ldap search: <{}>/{}: {} << {}",
             searchBaseDn, scope, filter.getFilter(), filter.getParameters());
@@ -806,18 +741,10 @@ public class LdapSystem {
 
 
     final List<LdapObject> result = new ArrayList<>();
-    SearchEntryHandler searchCallback = new SearchEntryHandler() {
-      @Override
-      public HandlerResult<SearchEntry> handle(Connection connection, SearchRequest searchRequest, SearchEntry searchEntry) throws LdapException {
-        LOG.debug("Ldap result: {}", searchEntry.getDn());
-        result.add(new LdapObject(searchEntry, request.getReturnAttributes()));
-        return null;
-      }
-
-      @Override
-      public void initializeRequest(SearchRequest searchRequest) {
-
-      }
+    LdapEntryHandler searchCallback = ldapEntry -> {
+      LOG.debug("Ldap result: {}", ldapEntry.getDn());
+      result.add(new LdapObject(ldapEntry, request.getReturnAttributes()));
+      return null;
     };
     performLdapSearchRequest(approximateNumResultsExpected, request, searchCallback);
 
@@ -837,7 +764,7 @@ public class LdapSystem {
 
   public Set<String> performLdapSearchRequest_returningValuesOfAnAttribute(int approximateNumResultsExpected, String searchBaseDn, SearchScope scope, final String attributeToReturn, String filterTemplate, Object... filterParams)
           throws PspException {
-    SearchFilter filter = new SearchFilter(filterTemplate);
+    FilterTemplate filter = new FilterTemplate(filterTemplate);
     LOG.debug("Running ldap search: <{}>/{}: {} << {}",
             new Object[]{searchBaseDn, scope, filterTemplate, Arrays.toString(filterParams)});
 
@@ -851,24 +778,15 @@ public class LdapSystem {
 
     // Create a place to hold the String-only results and a handler to put them into it
     final Set<String> result = new HashSet<>();
-    SearchEntryHandler searchCallback = new SearchEntryHandler() {
-      @Override
-      public HandlerResult<SearchEntry> handle(Connection connection, SearchRequest searchRequest, SearchEntry searchEntry) throws LdapException {
-
-        if ( attributeToReturn.equalsIgnoreCase("dn") || attributeToReturn.equalsIgnoreCase("distinguishedName") ) {
-          result.add(searchEntry.getDn().toLowerCase());
-        } else {
-          LdapAttribute attribute = searchEntry.getAttribute(attributeToReturn);
-          if (attribute != null)
-            result.addAll(attribute.getStringValues());
-        }
-        return null;
+    LdapEntryHandler searchCallback = ldapEntry -> {
+      if ( attributeToReturn.equalsIgnoreCase("dn") || attributeToReturn.equalsIgnoreCase("distinguishedName") ) {
+        result.add(ldapEntry.getDn().toLowerCase());
+      } else {
+        LdapAttribute attribute = ldapEntry.getAttribute(attributeToReturn);
+        if (attribute != null)
+          result.addAll(attribute.getStringValues());
       }
-
-      @Override
-      public void initializeRequest(SearchRequest searchRequest) {
-
-      }
+      return null;
     };
 
     performLdapSearchRequest(approximateNumResultsExpected, request, searchCallback);
@@ -979,7 +897,7 @@ public class LdapSystem {
                   correctEntry.getDn(), attributeName,
                   (existingAttribute != null ? existingAttribute.size() : "<none>"));
 
-          AttributeModification mod = new AttributeModification(AttributeModificationType.REMOVE, existingAttribute);
+          AttributeModification mod = new AttributeModification(AttributeModification.Type.DELETE, existingAttribute);
           ModifyRequest modRequest = new ModifyRequest(correctEntry.getDn(), mod);
           performLdapModify(modRequest, valuesAreCaseSensitive);
         }
@@ -993,7 +911,7 @@ public class LdapSystem {
                 (existingAttribute != null ? existingAttribute.size() : "<none>"),
                 (correctAttribute  != null ? correctAttribute.size() : "<none>" ));
 
-        AttributeModification mod = new AttributeModification(AttributeModificationType.REPLACE, correctAttribute);
+        AttributeModification mod = new AttributeModification(AttributeModification.Type.REPLACE, correctAttribute);
         ModifyRequest modRequest = new ModifyRequest(correctEntry.getDn(), mod);
         performLdapModify(modRequest, valuesAreCaseSensitive);
       }
@@ -1022,8 +940,7 @@ public class LdapSystem {
       LOG.debug("{}: DN needs to change to {}", existingDn, correctDn);
 
       // Now modify the DN
-      ModifyDnRequest moddn = new ModifyDnRequest(existingDn, correctDn);
-      moddn.setDeleteOldRDn(true);
+      ModifyDnRequest moddn = new ModifyDnRequest(existingDn, correctDn, true);
 
       performLdapModifyDn(moddn);
       return true;
@@ -1087,23 +1004,19 @@ public class LdapSystem {
     }
     
     try {
-      BlockingConnectionPool pool = buildLdapConnectionPool();
+      PooledConnectionFactory pool = buildLdapConnectionFactory();
       LOG.info("Success: Ldap pool built");
 
-      performTestLdapRead(pool.getConnection());
+      performTestLdapRead(pool);
       LOG.info("Success: Test ldap read");
       return true;
-    }
-    catch (LdapException e) {
-      LOG.error("LDAP Failure",e);
-      return false;
     }
     catch (PspException e) {
       LOG.error("LDAP Failure",e);
       return false;
     }
   }
-  
+
   public static void main(String[] args) {
     if ( args.length != 1 ) {
       LOG.error("USAGE: <ldap-pool-name from grouper-loader.properties>");

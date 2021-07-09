@@ -33,7 +33,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.ldaptive.SearchFilter;
+import org.ldaptive.FilterTemplate;
 
 import edu.internet2.middleware.grouper.cache.GrouperCache;
 import edu.internet2.middleware.grouper.ldap.LdapEntry;
@@ -219,7 +219,7 @@ public class WsGrouperLdapAuthentication implements WsCustomAuthentication {
       }
       
       if (!StringUtils.isEmpty(findUserFilter)) {
-        String filter = findUserFilter.replace("{username}", SearchFilter.encodeValue(principal));
+        String filter = findUserFilter.replace("{username}", FilterTemplate.encodeValue(principal));
         List<LdapEntry> ldapEntries = LdapSessionUtils.ldapSession().list(grouperLoaderLdapConfigId, findUserBase, LdapSearchScope.SUBTREE_SCOPE, filter, new String[] { "1.1" }, null);
         if (ldapEntries.size() != 1) {
           LOG.warn("error for principal: " + principal + ", filter " + filter + " returned " + ldapEntries.size() + " results");

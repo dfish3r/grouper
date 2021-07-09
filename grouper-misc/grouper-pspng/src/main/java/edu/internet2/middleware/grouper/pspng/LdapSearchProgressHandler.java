@@ -1,14 +1,10 @@
 package edu.internet2.middleware.grouper.pspng;
 
-import org.ldaptive.Connection;
-import org.ldaptive.LdapException;
-import org.ldaptive.SearchEntry;
-import org.ldaptive.SearchRequest;
-import org.ldaptive.handler.HandlerResult;
-import org.ldaptive.handler.SearchEntryHandler;
+import org.ldaptive.LdapEntry;
+import org.ldaptive.handler.LdapEntryHandler;
 import org.slf4j.Logger;
 
-public class LdapSearchProgressHandler implements SearchEntryHandler {
+public class LdapSearchProgressHandler implements LdapEntryHandler {
     ProgressMonitor progressMonitor;
 
     public LdapSearchProgressHandler(int numberOfExpectedResults, Logger LOG, String progressMonitorLabel) {
@@ -20,15 +16,8 @@ public class LdapSearchProgressHandler implements SearchEntryHandler {
     }
 
     @Override
-    public HandlerResult<SearchEntry> handle(Connection connection, SearchRequest searchRequest, SearchEntry searchEntry) throws LdapException {
+    public LdapEntry apply(LdapEntry ldapEntry) {
       progressMonitor.workCompleted(1);
-
-      return new HandlerResult<SearchEntry>(searchEntry);
-    }
-
-
-    @Override
-    public void initializeRequest(SearchRequest searchRequest) {
-
+      return ldapEntry;
     }
 }

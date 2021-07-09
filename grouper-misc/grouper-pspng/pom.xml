@@ -57,11 +57,11 @@
     </dependency>
     <dependency>
     	<groupId>org.ldaptive</groupId>
-    	<artifactId>ldaptive</artifactId>
+    	<artifactId>ldaptive-jdk8</artifactId>
     </dependency>
     <dependency>
-    	<groupId>org.ldaptive</groupId>
-    	<artifactId>ldaptive-unboundid</artifactId>
+        <groupId>com.unboundid</groupId>
+        <artifactId>unboundid-ldapsdk</artifactId>
     </dependency>
 	<dependency>
 	    <groupId>commons-lang</groupId>

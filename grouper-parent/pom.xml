@@ -169,7 +169,8 @@
         <hsqldb.version>2.3.5</hsqldb.version>
         <postgresql.version>42.2.19</postgresql.version>
         <mysql.connector.java.version>8.0.23</mysql.connector.java.version>
-        <ldaptive.version>1.1.2</ldaptive.version>
+        <ldaptive.version>2.0.2-SNAPSHOT</ldaptive.version>
+        <unboundid.version>6.0.0</unboundid.version>
         <xml.apis.version>1.4.01</xml.apis.version>
         <aws.java.sdk.core>1.11.529</aws.java.sdk.core>
         <aws.java.sdk.s3>1.11.529</aws.java.sdk.s3>
@@ -206,6 +207,12 @@
             <snapshots>
                 <enabled>false</enabled>
             </snapshots>
+        </repository>
+        <!-- Temporarily added for ldaptive v2 migration, needed for jdk8 version -->
+        <repository>
+            <id>edu.vt-middleware</id>
+            <name>Middleware Open Source Repository</name>
+            <url>https://raw.github.com/vt-middleware/maven-repo/master</url>
         </repository>
         <repository>
             <id>nexus-releases</id>
@@ -819,13 +826,13 @@
 
             <dependency>
               <groupId>org.ldaptive</groupId>
-              <artifactId>ldaptive</artifactId>
+              <artifactId>ldaptive-jdk8</artifactId>
               <version>${ldaptive.version}</version>
             </dependency>
             <dependency>
-              <groupId>org.ldaptive</groupId>
-              <artifactId>ldaptive-unboundid</artifactId>
-              <version>${ldaptive.version}</version>
+              <groupId>com.unboundid</groupId>
+              <artifactId>unboundid-ldapsdk</artifactId>
+              <version>${unboundid.version}</version>
             </dependency>
             <dependency>
 		          <groupId>org.jsoup</groupId>

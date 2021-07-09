@@ -37,10 +37,10 @@ import org.apache.commons.lang.builder.ToStringBuilder;
 import org.apache.commons.lang.builder.ToStringStyle;
 import org.ldaptive.*;
 import org.ldaptive.io.LdifWriter;
-import org.ldaptive.provider.unboundid.UnboundIDUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.unboundid.ldap.sdk.Attribute;
 import com.unboundid.ldap.sdk.Entry;
 import com.unboundid.ldap.sdk.Filter;
 import com.unboundid.ldap.sdk.LDAPException;
@@ -66,7 +66,6 @@ public class LdapObject {
   private static final Logger LOG = LoggerFactory.getLogger(LdapObject.class);
 
   protected final Set<String> attributesRequested = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
-  private static final UnboundIDUtils unboundIdUtils = new UnboundIDUtils();
 
   // This is a snapshot of who created this LdapObject. We are saving this because
   // it can be hard to track down where an LdapObject was fetched. In particular,
@@ -109,7 +108,7 @@ public class LdapObject {
    * @param dn
    */
   public LdapObject(String dn) {
-    this(new LdapEntry(dn), new String[]{});
+    this(LdapEntry.builder().dn(dn).build(), new String[]{});
   }
 
   /**
@@ -130,8 +129,15 @@ public class LdapObject {
     {
       Entry result = new Entry(getDn());
       
-      for ( LdapAttribute attribute : ldapEntry.getAttributes() ) 
-        result.addAttribute(unboundIdUtils.fromLdapAttribute(attribute));
+      for ( LdapAttribute attribute : ldapEntry.getAttributes() ) {
+        final Attribute unboundAttr;
+        if (attribute.isBinary()) {
+          unboundAttr = new Attribute(attribute.getName(), attribute.getBinaryValues().toArray(new byte[0][]));
+        } else {
+          unboundAttr = new Attribute(attribute.getName(), attribute.getStringValues());
+        }
+        result.addAttribute(unboundAttr);
+      }
       unboundidEntry = result;
     }
     return unboundidEntry;
@@ -281,8 +287,8 @@ public class LdapObject {
         
     index.put(attributeValue, this);
   }
-  
-  public boolean matchesLdapFilter(SearchFilter filter) throws PspException {
+
+  public boolean matchesLdapFilter(FilterTemplate filter) throws PspException {
     try {
       Filter unboundidFilter = Filter.create(filter.format());
       boolean result = unboundidFilter.matchesEntry(getUnboundIdEntry());
@@ -334,7 +340,7 @@ public class LdapObject {
     try {
       StringWriter sWriter = new StringWriter();
       LdifWriter ldifWriter = new LdifWriter(sWriter);
-      ldifWriter.write(new SearchResult(ldapEntry));
+      ldifWriter.write(SearchResponse.builder().entry(ldapEntry).build());
 
       return sWriter.toString();
     } catch (IOException e) {
