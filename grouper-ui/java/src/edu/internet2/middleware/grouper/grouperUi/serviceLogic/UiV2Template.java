@@ -1267,6 +1267,8 @@ public class UiV2Template {
             gshTemplateDecorateForUiInput.setEventConfigId(request.getParameter("eventConfigId"));
             gshTemplateDecorateForUiInput.setSubmit(submit);
             gshTemplateDecorateForUiInput.setNewForm(newTemplate);
+            gshTemplateDecorateForUiInput.setOwnerGroupName(group == null ? null : group.getName());
+            gshTemplateDecorateForUiInput.setOwnerStemName(stem == null ? null : stem.getName());
             try {
               executeForTemplateV2instance.decorateTemplateForUiDisplay(gshTemplateDecorateForUiInput);
             } catch (Throwable t) {
