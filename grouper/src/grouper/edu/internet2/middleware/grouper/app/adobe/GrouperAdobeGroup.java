@@ -9,6 +9,7 @@ import edu.internet2.middleware.grouper.ext.org.apache.ddlutils.model.Database;
 import edu.internet2.middleware.grouper.ext.org.apache.ddlutils.model.Table;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import edu.internet2.middleware.grouper.app.provisioning.ProvisioningGroup;
 import edu.internet2.middleware.grouper.ddl.DdlVersionBean;
@@ -65,8 +66,10 @@ public class GrouperAdobeGroup {
     
     GrouperAdobeGroup grouperAdobeGroup = new GrouperAdobeGroup();
     
-    if (fieldNamesToSet == null || fieldNamesToSet.contains("id")) {      
-      grouperAdobeGroup.setId(Long.valueOf(targetGroup.getId()));
+    if (fieldNamesToSet == null || fieldNamesToSet.contains("id")) {   
+      if (StringUtils.isNotBlank(targetGroup.getId())) {        
+        grouperAdobeGroup.setId(Long.valueOf(targetGroup.getId()));
+      }
     }
     
     if (fieldNamesToSet == null || fieldNamesToSet.contains("name")) {      
@@ -189,5 +192,28 @@ public class GrouperAdobeGroup {
     
     return grouperAdobeGroup;
   }
+  
+  public ObjectNode toJson(Set<String> fieldNamesToSet) {
+    ObjectNode result = GrouperUtil.jsonJacksonNode();
+    
+    if (fieldNamesToSet == null || fieldNamesToSet.contains("type")) {      
+      GrouperUtil.jsonJacksonAssignString(result, "type", this.type);
+    }
+    if (fieldNamesToSet == null || fieldNamesToSet.contains("name")) {      
+      GrouperUtil.jsonJacksonAssignString(result, "groupName", this.name);
+    }
+    if (fieldNamesToSet == null || fieldNamesToSet.contains("id")) {      
+      GrouperUtil.jsonJacksonAssignLong(result, "groupId", this.id);
+    }
+    if (fieldNamesToSet == null || fieldNamesToSet.contains("memberCount")) {      
+      GrouperUtil.jsonJacksonAssignLong(result, "memberCount", this.memberCount);
+    }
+    if (fieldNamesToSet == null || fieldNamesToSet.contains("licenseQuota")) {      
+      GrouperUtil.jsonJacksonAssignLong(result, "licenseQuota", this.licenseQuota);
+    }
+    
+    return result;
+  }
+
 
 }

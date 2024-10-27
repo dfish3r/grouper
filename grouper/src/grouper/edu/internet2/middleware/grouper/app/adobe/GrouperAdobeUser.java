@@ -140,12 +140,13 @@ public class GrouperAdobeUser {
     grouperAdobeUser.type = GrouperUtil.jsonJacksonGetString(entityNode, "type");
     grouperAdobeUser.country = GrouperUtil.jsonJacksonGetString(entityNode, "country");
   
+    grouperAdobeUser.groups = GrouperUtil.jsonJacksonGetStringSet(entityNode, "groups");
     if (includeLoadedFields) {
       
       grouperAdobeUser.userName = GrouperUtil.jsonJacksonGetString(entityNode, "username");
       grouperAdobeUser.domain = GrouperUtil.jsonJacksonGetString(entityNode, "domain");
       grouperAdobeUser.status = GrouperUtil.jsonJacksonGetString(entityNode, "status");
-      grouperAdobeUser.groups = GrouperUtil.jsonJacksonGetStringSet(entityNode, "groups");
+      
     }
     
     return grouperAdobeUser;
@@ -305,6 +306,21 @@ public class GrouperAdobeUser {
     }
     if (fieldNamesToSet == null || fieldNamesToSet.contains("lastName")) {      
       GrouperUtil.jsonJacksonAssignString(result, "lastname", this.lastName);
+    }
+    if (fieldNamesToSet == null || fieldNamesToSet.contains("id")) {      
+      GrouperUtil.jsonJacksonAssignString(result, "id", this.id);
+    }
+    if (fieldNamesToSet == null || fieldNamesToSet.contains("status")) {      
+      GrouperUtil.jsonJacksonAssignString(result, "status", this.status);
+    }
+    if (fieldNamesToSet == null || fieldNamesToSet.contains("username")) {      
+      GrouperUtil.jsonJacksonAssignString(result, "username", this.userName);
+    }
+    if (fieldNamesToSet == null || fieldNamesToSet.contains("domain")) {      
+      GrouperUtil.jsonJacksonAssignString(result, "domain", this.domain);
+    }
+    if (fieldNamesToSet == null || fieldNamesToSet.contains("type")) {      
+      GrouperUtil.jsonJacksonAssignString(result, "type", this.type);
     }
     
     return result;

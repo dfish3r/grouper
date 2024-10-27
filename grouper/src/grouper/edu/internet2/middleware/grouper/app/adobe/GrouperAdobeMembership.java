@@ -26,7 +26,7 @@ public class GrouperAdobeMembership {
 
       Table loaderTable = GrouperDdlUtils.ddlutilsFindOrCreateTable(database, tableName);
       
-      GrouperDdlUtils.ddlutilsFindOrCreateColumn(loaderTable, "group_id", Types.VARCHAR, "40", false, true);
+      GrouperDdlUtils.ddlutilsFindOrCreateColumn(loaderTable, "group_id", Types.BIGINT, "12", false, true);
       GrouperDdlUtils.ddlutilsFindOrCreateColumn(loaderTable, "user_id", Types.VARCHAR, "40", false, true);
       GrouperDdlUtils.ddlutilsFindOrCreateColumn(loaderTable, "id", Types.VARCHAR, "40", true, true);
       
@@ -34,8 +34,8 @@ public class GrouperAdobeMembership {
       GrouperDdlUtils.ddlutilsFindOrCreateIndex(database, tableName, "mock_adobe_mship_uid_idx", false, "user_id");
       GrouperDdlUtils.ddlutilsFindOrCreateIndex(database, tableName, "mock_adobe_mship_uid_idx", true, "group_id", "user_id");
       
-      GrouperDdlUtils.ddlutilsFindOrCreateForeignKey(database, tableName, "mock_adobe_mship_gid_fkey", "mock_adobe_group", "group_id", "id");
-      GrouperDdlUtils.ddlutilsFindOrCreateForeignKey(database, tableName, "mock_adobe_mship_uid_fkey", "mock_adobe_user", "user_id", "id");
+//      GrouperDdlUtils.ddlutilsFindOrCreateForeignKey(database, tableName, "mock_adobe_mship_gid_fkey", "mock_adobe_group", "group_id", "id");
+//      GrouperDdlUtils.ddlutilsFindOrCreateForeignKey(database, tableName, "mock_adobe_mship_uid_fkey", "mock_adobe_user", "user_id", "id");
     }
     
   }
@@ -56,22 +56,22 @@ public class GrouperAdobeMembership {
     this.id = id;
   }
   
-  private String groupId;
+  private Long groupId;
   
   private String userId;
   
-  public String getGroupId() {
+  
+  public Long getGroupId() {
     return groupId;
   }
 
 
   
-  public void setGroupId(String groupId) {
+  public void setGroupId(Long groupId) {
     this.groupId = groupId;
   }
 
 
-  
   public String getUserId() {
     return userId;
   }

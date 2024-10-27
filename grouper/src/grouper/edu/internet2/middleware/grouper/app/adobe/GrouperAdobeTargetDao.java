@@ -25,8 +25,6 @@ import edu.internet2.middleware.grouper.app.provisioning.targetDao.TargetDaoDele
 import edu.internet2.middleware.grouper.app.provisioning.targetDao.TargetDaoDeleteMembershipResponse;
 import edu.internet2.middleware.grouper.app.provisioning.targetDao.TargetDaoInsertEntityRequest;
 import edu.internet2.middleware.grouper.app.provisioning.targetDao.TargetDaoInsertEntityResponse;
-import edu.internet2.middleware.grouper.app.provisioning.targetDao.TargetDaoInsertGroupRequest;
-import edu.internet2.middleware.grouper.app.provisioning.targetDao.TargetDaoInsertGroupResponse;
 import edu.internet2.middleware.grouper.app.provisioning.targetDao.TargetDaoInsertGroupsRequest;
 import edu.internet2.middleware.grouper.app.provisioning.targetDao.TargetDaoInsertGroupsResponse;
 import edu.internet2.middleware.grouper.app.provisioning.targetDao.TargetDaoInsertMembershipRequest;
@@ -47,8 +45,6 @@ import edu.internet2.middleware.grouper.app.provisioning.targetDao.TargetDaoRetr
 import edu.internet2.middleware.grouper.app.provisioning.targetDao.TargetDaoRetrieveGroupsResponse;
 import edu.internet2.middleware.grouper.app.provisioning.targetDao.TargetDaoRetrieveMembershipsByEntityRequest;
 import edu.internet2.middleware.grouper.app.provisioning.targetDao.TargetDaoRetrieveMembershipsByEntityResponse;
-import edu.internet2.middleware.grouper.app.provisioning.targetDao.TargetDaoRetrieveMembershipsByGroupRequest;
-import edu.internet2.middleware.grouper.app.provisioning.targetDao.TargetDaoRetrieveMembershipsByGroupResponse;
 import edu.internet2.middleware.grouper.app.provisioning.targetDao.TargetDaoTimingInfo;
 import edu.internet2.middleware.grouper.app.provisioning.targetDao.TargetDaoUpdateEntityRequest;
 import edu.internet2.middleware.grouper.app.provisioning.targetDao.TargetDaoUpdateEntityResponse;
@@ -89,6 +85,8 @@ public class GrouperAdobeTargetDao extends GrouperProvisionerTargetDaoBase {
       List<GrouperAdobeGroup> grouperAdobeGroups = GrouperAdobeApiCommands
           .retrieveAdobeGroups(adobeConfiguration.getAdobeExternalSystemConfigId(), orgId);
       
+      cacheGroupNameToGroup.clear();
+      cacheGroupIdToGroup.clear();
       populateGroupCache(grouperAdobeGroups);
 
       for (GrouperAdobeGroup grouperAdobeGroup : grouperAdobeGroups) {
@@ -491,26 +489,34 @@ public class GrouperAdobeTargetDao extends GrouperProvisionerTargetDaoBase {
     ProvisioningEntity targetEntity = targetDaoRetrieveMembershipsByEntityRequest.getTargetEntity();
 
     try {
-      GrouperAdobeConfiguration duoConfiguration = (GrouperAdobeConfiguration) this.getGrouperProvisioner().retrieveGrouperProvisioningConfiguration();
-
-      String targetEntityId = resolveTargetEntityId(targetEntity);
+      GrouperAdobeConfiguration adobeConfiguration = (GrouperAdobeConfiguration) this.getGrouperProvisioner().retrieveGrouperProvisioningConfiguration();
+      String orgId = adobeConfiguration.getOrgId();
       
-      if (StringUtils.isBlank(targetEntityId)) {
-        return new TargetDaoRetrieveMembershipsByEntityResponse(new ArrayList<ProvisioningMembership>());
+      boolean loadEntitiesToGrouperTable = this.getGrouperProvisioner().retrieveGrouperProvisioningBehavior().isLoadEntitiesToGrouperTable();
+      
+      GrouperAdobeUser grouperAdobeUser = null;
+      if (StringUtils.equals("email", targetDaoRetrieveMembershipsByEntityRequest.getSearchAttribute())) {
+        grouperAdobeUser = GrouperAdobeApiCommands.retrieveAdobeUser(adobeConfiguration.getAdobeExternalSystemConfigId(), 
+            GrouperUtil.stringValue(targetDaoRetrieveMembershipsByEntityRequest.getSearchAttributeValue()), loadEntitiesToGrouperTable, orgId);
+      } else if (StringUtils.isNotBlank(targetEntity.getEmail())) {
+        grouperAdobeUser = GrouperAdobeApiCommands.retrieveAdobeUser(adobeConfiguration.getAdobeExternalSystemConfigId(), 
+            targetEntity.getEmail(), loadEntitiesToGrouperTable, orgId);
+      } else {
+        throw new RuntimeException("Email not found in targetEntity.getEmail and also in search attibute '" + targetDaoRetrieveMembershipsByEntityRequest.getSearchAttribute() + "'");
       }
-
-//      List<GrouperAdobeGroup> duoGroups = GrouperAdobeApiCommands.retrieveAdobeGroupsByUser(duoConfiguration.getAdobeExternalSystemConfigId(), targetEntityId);
-      List<GrouperAdobeGroup> duoGroups = null;
+      
+      Set<String> groups = grouperAdobeUser.getGroups();
       List<ProvisioningMembership> provisioningMemberships = new ArrayList<ProvisioningMembership>();
-      
-      for (GrouperAdobeGroup duoGroup : duoGroups) {
-
-        ProvisioningMembership targetMembership = new ProvisioningMembership(false);
-        targetMembership.setProvisioningGroupId(duoGroup.getId().toString());
-        targetMembership.setProvisioningEntityId(targetEntity.getId());
-        provisioningMemberships.add(targetMembership);
+      for (String groupName: groups) {
+        
+        GrouperAdobeGroup grouperAdobeGroup = cacheGroupNameToGroup.get(Boolean.TRUE).get(groupName);
+        if (grouperAdobeGroup != null) {
+          ProvisioningMembership targetMembership = new ProvisioningMembership(false);
+          targetMembership.setProvisioningGroupId(grouperAdobeGroup.getId().toString());
+          targetMembership.setProvisioningEntityId(targetEntity.getId());
+          provisioningMemberships.add(targetMembership);
+        }
       }
-  
       return new TargetDaoRetrieveMembershipsByEntityResponse(provisioningMemberships);
     } finally {
       this.addTargetDaoTimingInfo(new TargetDaoTimingInfo("retrieveMembershipsByEntity", startNanos));
@@ -567,41 +573,6 @@ public class GrouperAdobeTargetDao extends GrouperProvisionerTargetDaoBase {
     }
     
     return targetDaoRetrieveGroupsResponse.getTargetGroups().get(0).getId();
-    
-  }
-  
-  @Override
-  public TargetDaoRetrieveMembershipsByGroupResponse retrieveMembershipsByGroup(TargetDaoRetrieveMembershipsByGroupRequest targetDaoRetrieveMembershipsByGroupRequest) {
-    
-    long startNanos = System.nanoTime();
-    ProvisioningGroup targetGroup = targetDaoRetrieveMembershipsByGroupRequest.getTargetGroup();
-
-    try {
-      GrouperAdobeConfiguration duoConfiguration = (GrouperAdobeConfiguration) this.getGrouperProvisioner().retrieveGrouperProvisioningConfiguration();
-
-      String targetGroupId = resolveTargetGroupId(targetGroup);
-      
-      if (StringUtils.isBlank(targetGroupId)) {
-        return new TargetDaoRetrieveMembershipsByGroupResponse(new ArrayList<ProvisioningMembership>());
-      }
-      
-//      List<GrouperAdobeUser> duoUsers = GrouperAdobeApiCommands.retrieveAdobeUserIdsUserNamesByGroup(duoConfiguration.getAdobeExternalSystemConfigId(), targetGroupId);
-      
-      List<ProvisioningMembership> provisioningMemberships = new ArrayList<ProvisioningMembership>(); 
-      List<GrouperAdobeUser> duoUsers = null;
-      for (GrouperAdobeUser duoUser : duoUsers) {
-
-        ProvisioningMembership targetMembership = new ProvisioningMembership(false);
-        targetMembership.setProvisioningGroupId(targetGroup.getId());
-        targetMembership.setProvisioningEntityId(duoUser.getId());
-        provisioningMemberships.add(targetMembership);
-        
-      }
-  
-      return new TargetDaoRetrieveMembershipsByGroupResponse(provisioningMemberships);
-    } finally {
-      this.addTargetDaoTimingInfo(new TargetDaoTimingInfo("retrieveMembershipsByGroup", startNanos));
-    }
     
   }
 
@@ -693,10 +664,9 @@ public class GrouperAdobeTargetDao extends GrouperProvisionerTargetDaoBase {
       String orgId = adobeConfiguration.getOrgId();
       boolean deleteAccountWhenDeleteUser = adobeConfiguration.isDeleteAccountWhenDeleteUser();
       
-
       GrouperAdobeUser grouperAdobeUser = GrouperAdobeUser.fromProvisioningEntity(targetEntity, null);
       
-      GrouperAdobeApiCommands.deleteAdobeUser(adobeConfiguration.getAdobeExternalSystemConfigId(), grouperAdobeUser.getId(), deleteAccountWhenDeleteUser, orgId);
+      GrouperAdobeApiCommands.deleteAdobeUser(adobeConfiguration.getAdobeExternalSystemConfigId(), grouperAdobeUser.getEmail(), deleteAccountWhenDeleteUser, orgId);
 
       targetEntity.setProvisioned(true);
       for (ProvisioningObjectChange provisioningObjectChange : GrouperUtil.nonNull(targetEntity.getInternal_objectChanges())) {
@@ -727,7 +697,8 @@ public class GrouperAdobeTargetDao extends GrouperProvisionerTargetDaoBase {
     long startNanos = System.nanoTime();
 
     try {
-      GrouperAdobeConfiguration duoConfiguration = (GrouperAdobeConfiguration) this.getGrouperProvisioner().retrieveGrouperProvisioningConfiguration();
+      GrouperAdobeConfiguration adobeConfiguration = (GrouperAdobeConfiguration) this.getGrouperProvisioner().retrieveGrouperProvisioningConfiguration();
+      String orgId = adobeConfiguration.getOrgId();
       
       TargetDaoRetrieveAllGroupsResponse targetDaoRetrieveAllGroupsResponse = this.retrieveAllGroups(new TargetDaoRetrieveAllGroupsRequest(false));
       
@@ -737,8 +708,8 @@ public class GrouperAdobeTargetDao extends GrouperProvisionerTargetDaoBase {
       
       boolean loadEntitiesToGrouperTable = this.getGrouperProvisioner().retrieveGrouperProvisioningBehavior().isLoadEntitiesToGrouperTable();
       
-//      List<GrouperAdobeUser> duoUsers = GrouperAdobeApiCommands.retrieveAdobeUsers(duoConfiguration.getAdobeExternalSystemConfigId(), loadEntitiesToGrouperTable);
-      List<GrouperAdobeUser> duoUsers = null;
+      List<GrouperAdobeUser> adobeUsers = GrouperAdobeApiCommands.retrieveAdobeUsers(adobeConfiguration.getAdobeExternalSystemConfigId(),
+          loadEntitiesToGrouperTable, orgId);
       List<ProvisioningMembership> targetMemberships = new ArrayList<>();
       targetData.setProvisioningMemberships(targetMemberships);
       
@@ -748,23 +719,26 @@ public class GrouperAdobeTargetDao extends GrouperProvisionerTargetDaoBase {
       Map<ProvisioningEntity, Object> targetEntityToTargetNativeEntity = targetDaoRetrieveAllDataResponse
            .getTargetEntityToTargetNativeEntity();
 
-      for (GrouperAdobeUser duoUser: duoUsers) {
+      for (GrouperAdobeUser adobeUser: adobeUsers) {
         
-        ProvisioningEntity targetEntity = duoUser.toProvisioningEntity();
+        ProvisioningEntity targetEntity = adobeUser.toProvisioningEntity();
         targetEntities.add(targetEntity);
 
         if (targetDaoRetrieveAllDataRequest.isIncludeNativeEntity()) {
-          targetEntityToTargetNativeEntity.put(targetEntity, duoUser);
+          targetEntityToTargetNativeEntity.put(targetEntity, adobeUser);
         }
 
-//        Set<GrouperAdobeGroup> groupsPerUser = duoUser.getGroups();
-//        
-//        for (GrouperAdobeGroup duoGroup: groupsPerUser) {
-//          ProvisioningMembership targetMembership = new ProvisioningMembership(false);
-//          targetMembership.setProvisioningEntityId(duoUser.getId());
-//          targetMembership.setProvisioningGroupId(duoGroup.getId().toString());
-//          targetMemberships.add(targetMembership);
-//        }
+        Set<String> groupNames = GrouperUtil.nonNull(adobeUser.getGroups());
+        
+        for (String group: groupNames) {
+          if (cacheGroupNameToGroup.get(Boolean.TRUE).containsKey(group)) {
+            GrouperAdobeGroup grouperAdobeGroup = cacheGroupNameToGroup.get(Boolean.TRUE).get(group);
+            ProvisioningMembership targetMembership = new ProvisioningMembership(false);
+            targetMembership.setProvisioningEntityId(adobeUser.getId());
+            targetMembership.setProvisioningGroupId(grouperAdobeGroup.getId().toString());
+            targetMemberships.add(targetMembership);
+          }
+        }
         
       }
 

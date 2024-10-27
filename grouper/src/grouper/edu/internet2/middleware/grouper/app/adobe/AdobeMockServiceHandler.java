@@ -1,20 +1,13 @@
 package edu.internet2.middleware.grouper.app.adobe;
 
-import java.io.UnsupportedEncodingException;
-import java.util.ArrayList;
-import java.util.Base64;
-import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
-import org.apache.commons.codec.digest.HmacAlgorithms;
-import org.apache.commons.codec.digest.HmacUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.math.RandomUtils;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
@@ -37,7 +30,6 @@ import edu.internet2.middleware.grouper.j2ee.MockServiceServlet;
 import edu.internet2.middleware.grouper.misc.GrouperStartup;
 import edu.internet2.middleware.grouper.util.GrouperUtil;
 import edu.internet2.middleware.grouperClient.jdbc.GcDbAccess;
-import edu.internet2.middleware.morphString.Morph;
 
 public class AdobeMockServiceHandler extends MockServiceHandler {
 
@@ -79,7 +71,7 @@ public class AdobeMockServiceHandler extends MockServiceHandler {
     try {
       new GcDbAccess().sql("select count(*) from mock_adobe_group").select(int.class);
       new GcDbAccess().sql("select count(*) from mock_adobe_user").select(int.class);
-//      new GcDbAccess().sql("select count(*) from mock_duo_auth").select(int.class);
+      new GcDbAccess().sql("select count(*) from mock_adobe_auth").select(int.class);
       new GcDbAccess().sql("select count(*) from mock_adobe_membership").select(int.class);
     } catch (Exception e) {
 
@@ -90,7 +82,7 @@ public class AdobeMockServiceHandler extends MockServiceHandler {
 
           Database database = ddlVersionBean.getDatabase();
           GrouperAdobeGroup.createTableAdobeGroup(ddlVersionBean, database);
-//          GrouperAzureAuth.createTableAzureAuth(ddlVersionBean, database);
+          GrouperAdobeAuth.createTableAdobeAuth(ddlVersionBean, database);
           GrouperAdobeUser.createTableAdobeUser(ddlVersionBean, database);
           GrouperAdobeMembership.createTableAdobeMembership(ddlVersionBean, database);
           
@@ -130,40 +122,28 @@ public class AdobeMockServiceHandler extends MockServiceHandler {
 //    GrouperUtil.assertion(StringUtils.equals(mockNamePaths.get(0), "admin"), "");
 //    GrouperUtil.assertion(StringUtils.equals(mockNamePaths.get(1), "v1") || StringUtils.equals(mockNamePaths.get(1), "v2"), "");
     
-    mockNamePaths = mockNamePaths.subList(2, mockNamePaths.size());
-    
     String[] paths = new String[mockNamePaths.size()];
     paths = mockNamePaths.toArray(paths);
     
     mockServiceRequest.setPostMockNamePaths(paths);
 
     if (StringUtils.equals("GET", mockServiceRequest.getHttpServletRequest().getMethod())) {
-      if ("groups".equals(mockNamePaths.get(0)) && 1 == mockServiceRequest.getPostMockNamePaths().length) {
-        getGroups(mockServiceRequest, mockServiceResponse);
+      if ("groups".equals(mockNamePaths.get(0)) && 3 == mockServiceRequest.getPostMockNamePaths().length) {
+        getGroups(mockServiceRequest, mockServiceResponse,  mockNamePaths.get(2));
         return;
       }
       if ("groups".equals(mockNamePaths.get(0)) && 2 == mockNamePaths.size()) {
         getGroup(mockServiceRequest, mockServiceResponse);
         return;
       }
-      
-      if ("groups".equals(mockNamePaths.get(0)) && "users".equals(mockNamePaths.get(2)) && 3 == mockNamePaths.size()) {
-        getUsersByGroup(mockServiceRequest, mockServiceResponse);
-        return;
-      }
 
-      if ("users".equals(mockNamePaths.get(0)) && 1 == mockNamePaths.size()) {
-        getUsers(mockServiceRequest, mockServiceResponse);
+      if ("users".equals(mockNamePaths.get(0)) && 3 == mockNamePaths.size()) {
+        getUsers(mockServiceRequest, mockServiceResponse, mockNamePaths.get(2));
         return;
       }
-      if ("users".equals(mockNamePaths.get(0)) && 2 == mockNamePaths.size()) {
+      if ("organizations".equals(mockNamePaths.get(0)) && "users".equals(mockNamePaths.get(2)) 
+          && 4 == mockNamePaths.size()) {
         getUser(mockServiceRequest, mockServiceResponse);
-        return;
-      }
-      if ("users".equals(mockNamePaths.get(0))  
-          && "groups".equals(mockNamePaths.get(2))
-          && 3 == mockNamePaths.size()) {
-        getGroupsByUser(mockServiceRequest, mockServiceResponse);
         return;
       }
     }
@@ -183,20 +163,18 @@ public class AdobeMockServiceHandler extends MockServiceHandler {
       }
     }
     if (StringUtils.equals("POST", mockServiceRequest.getHttpServletRequest().getMethod())) {
-      if ("auth".equals(mockNamePaths.get(0))) {
+      if ("token".equals(mockNamePaths.get(0))) {
         postAuth(mockServiceRequest, mockServiceResponse);
         return;
       }
+      
+      if ("action".equals(mockNamePaths.get(0))) {
+        handleAllActions(mockServiceRequest, mockServiceResponse);
+        return;
+      }
+      
       if ("groups".equals(mockNamePaths.get(0)) && 1 == mockNamePaths.size()) {
         postGroups(mockServiceRequest, mockServiceResponse);
-        return;
-      }
-      if ("groups".equals(mockNamePaths.get(0)) && 2 == mockNamePaths.size()) {
-        updateGroup(mockServiceRequest, mockServiceResponse);
-        return;
-      }
-      if ("users".equals(mockNamePaths.get(0)) && 1 == mockNamePaths.size()) {
-        postUsers(mockServiceRequest, mockServiceResponse);
         return;
       }
       if ("users".equals(mockNamePaths.get(0)) && 2 == mockNamePaths.size()) {
@@ -241,92 +219,22 @@ public class AdobeMockServiceHandler extends MockServiceHandler {
   
   public void checkAuthorization(MockServiceRequest mockServiceRequest) {
     String bearerToken = mockServiceRequest.getHttpServletRequest().getHeader("Authorization");
-    if (!bearerToken.startsWith("Basic ")) {
+    if (!bearerToken.startsWith("Bearer ")) {
       throw new RuntimeException("Authorization token must start with 'Basic '");
     }
-    String authorizationToken = GrouperUtil.prefixOrSuffix(bearerToken, "Basic ", false);
+    String authorizationToken = GrouperUtil.prefixOrSuffix(bearerToken, "Bearer ", false);
     
-    String credentials = "";
-    try {
-      credentials = new String(Base64.getDecoder().decode(authorizationToken), "UTF-8");
-    } catch (UnsupportedEncodingException e1) {
-      throw new RuntimeException(e1);
-    }
-    int colonIndex = credentials.indexOf(":");
-    GrouperUtil.assertion(colonIndex != -1, "Need to pass in integrationKey and password in Authorization header");
-    String integrationKey = credentials.substring(0, colonIndex).trim();
+
+    List<GrouperAdobeAuth> grouperAdobeAuths = 
+        HibernateSession.byHqlStatic().createQuery("from GrouperAdobeAuth where accessToken = :theAccessToken").setString("theAccessToken", authorizationToken).list(GrouperAdobeAuth.class);
     
-    String configId = GrouperConfig.retrieveConfig().propertyValueString("grouperTest.duo.mock.configId");
-    if (StringUtils.isBlank(configId)) {
-      configId = "duo1";
-    }
-    String expectedIntegrationKey = GrouperConfig.retrieveConfig().propertyValueString("grouper.duoConnector."+configId+".adminIntegrationKey");
-    if (StringUtils.isBlank(expectedIntegrationKey)) {
-      expectedIntegrationKey = "DI3GFYRTLYKA0J3E3U1H";
+    if (GrouperUtil.length(grouperAdobeAuths) != 1) {
+      throw new RuntimeException("Invalid access token, not found!");
     }
     
-    String adminDomainName = GrouperConfig.retrieveConfig().propertyValueString("grouper.duoConnector."+configId+".adminDomainName");
-    if (StringUtils.isBlank(adminDomainName)) {
-      String uiUrl = GrouperConfig.retrieveConfig().propertyValueString("grouper.ui.url", "http://localhost:8080/grouper");
-      uiUrl = GrouperUtil.stripLastSlashIfExists(uiUrl);
-      uiUrl = GrouperUtil.prefixOrSuffix(uiUrl, "http://", false);
-      uiUrl = GrouperUtil.prefixOrSuffix(uiUrl, "https://", false);
-      adminDomainName = uiUrl + "/mockServices/duo";
-    }
-    if (!StringUtils.equals(expectedIntegrationKey, integrationKey)) {
-      throw new RuntimeException("Integration key does not match with what is in grouper config");
-    }
-    
-    String password = credentials.substring(colonIndex + 1).trim();
-    
-    String date = mockServiceRequest.getHttpServletRequest().getHeader("Date");
-    String method = mockServiceRequest.getHttpServletRequest().getMethod().toUpperCase();
-    
-    String path = "/"+mockServiceRequest.getPostMockNamePath();
-    
-    Map<String, String> paramNamesToValues = new TreeMap<String, String>();
-    Enumeration<String> parameterNames = mockServiceRequest.getHttpServletRequest().getParameterNames();
-    while (parameterNames.hasMoreElements()) {
-      
-      String paramName = parameterNames.nextElement();
-      
-      String value = mockServiceRequest.getHttpServletRequest().getParameter(paramName);
-      paramNamesToValues.put(paramName, value);
-      
-    }
-    
-    String paramsLine = "";
-    if (paramNamesToValues.size() > 0) {
-      for (String paramName: paramNamesToValues.keySet()) {
-        if (StringUtils.isNotBlank(paramsLine)) {
-          paramsLine += "&";
-        }
-        paramsLine = paramsLine + GrouperUtil.escapeUrlEncode(paramName).replace("+", "%20") + "="+ GrouperUtil.escapeUrlEncode(paramNamesToValues.get(paramName)).replace("+", "%20");
-        
-      }
-    }
-    
-    String hmacSource = date + "\n" + method + "\n" + adminDomainName + "\n" + path + "\n" + paramsLine;
-    
-    String adminSecretKey = GrouperConfig.retrieveConfig().propertyValueString("grouper.duoConnector."+configId+".adminSecretKey");
-    if (StringUtils.isBlank(adminSecretKey)) {
-      adminSecretKey = "PxtwEr5XxxpGHYxj39vQnmjtPKEq1G1rurdwH7N5";
-    }
-    
-    String hmac = new HmacUtils(HmacAlgorithms.HMAC_SHA_1, adminSecretKey).hmacHex(hmacSource);
-    if (!StringUtils.equals(hmac, password)) {
-      throw new RuntimeException("hmac1 password does not match: "+StringUtils.abbreviate(hmac, 10));
-    }
-//    List<GrouperAzureAuth> grouperAzureAuths = 
-//        HibernateSession.byHqlStatic().createQuery("from GrouperAzureAuth where accessToken = :theAccessToken").setString("theAccessToken", authorizationToken).list(GrouperAzureAuth.class);
-//    
-//    if (GrouperUtil.length(grouperAzureAuths) != 1) {
-//      throw new RuntimeException("Invalid access token, not found!");
-//    }
-//    
-//    GrouperAzureAuth grouperAzureAuth = grouperAzureAuths.get(0);    
-//
-//    if (grouperAzureAuth.getExpiresOnSeconds() < System.currentTimeMillis()/1000) {
+    GrouperAdobeAuth grouperAdobeAuth = grouperAdobeAuths.get(0);    
+
+//    if (grouperAdobeAuth.getExpiresOnSeconds() < System.currentTimeMillis()/1000) {
 //      throw new RuntimeException("Invalid access token, expired!");
 //    }
 
@@ -343,7 +251,8 @@ public class AdobeMockServiceHandler extends MockServiceHandler {
     }
   }
 
-  public void getUsers(MockServiceRequest mockServiceRequest, MockServiceResponse mockServiceResponse) {
+  public void getUsers(MockServiceRequest mockServiceRequest,
+      MockServiceResponse mockServiceResponse, String pageNum) {
     
     try {      
       checkAuthorization(mockServiceRequest);
@@ -353,19 +262,9 @@ public class AdobeMockServiceHandler extends MockServiceHandler {
       return;
     }
 
-    String offset = mockServiceRequest.getHttpServletRequest().getParameter("offset");
-    String limit = mockServiceRequest.getHttpServletRequest().getParameter("limit");
+    String offset = pageNum;
     
     int limitInt = 100;
-    if (StringUtils.isNotBlank(limit)) {
-      limitInt = GrouperUtil.intValue(limit);
-      if (limitInt <= 0) {
-        throw new RuntimeException("limit cannot be less than or equal to 0.");
-      }
-      if (limitInt > 300) {
-        limitInt = 300;
-      }
-    }
     
     int offsetInt = 0;
     int pageNumber = 1;
@@ -376,17 +275,9 @@ public class AdobeMockServiceHandler extends MockServiceHandler {
     
     List<GrouperAdobeUser> grouperAdobeUsers = null;
     
-    String hql = "select distinct user from GrouperAdobeUser user left join user.groups groups";
-    
-    String userName = mockServiceRequest.getHttpServletRequest().getParameter("username");
-    if (!StringUtils.isBlank(userName)) {
-      hql += " where user.userName = :userName";
-    }
+    String hql = "select distinct user from GrouperAdobeUser user";
     
     ByHqlStatic query = HibernateSession.byHqlStatic().createQuery(hql);
-    if (!StringUtils.isBlank(userName)) {
-      query.setString("userName", userName);
-    }
     
     QueryOptions queryOptions = new QueryOptions();
     QueryPaging queryPaging = QueryPaging.page(limitInt, pageNumber, true);
@@ -394,23 +285,150 @@ public class AdobeMockServiceHandler extends MockServiceHandler {
     
     query.options(queryOptions);
     
+    int totalRecordCount = queryOptions.getQueryPaging().getTotalRecordCount();
+    
     grouperAdobeUsers = query.list(GrouperAdobeUser.class);
+    
+    /**
+     * {
+        "lastPage": false,
+        "result": "success",
+        "users": [{
+          "id": "abc123",
+          "email": "abc@school.edu",
+          "status": "active",
+          "groups": ["Group name 1", "Group name 2"],
+          "username": "ABC@UPENN.EDU",
+          "domain": "upenn.edu",
+          "firstname": "Dave",
+          "lastname": "Smith",
+          "type": "federatedID",
+          "country": "US"
+        }]
+       }
+     */
     
     ObjectNode resultNode = GrouperUtil.jsonJacksonNode();
     ArrayNode valueNode = GrouperUtil.jsonJacksonArrayNode();
     
-    resultNode.put("stat", "OK");
+    resultNode.put("result", "success");
+    if (queryPaging.getTotalRecordCount() > offsetInt + grouperAdobeUsers.size()) {
+      resultNode.put("lastPage", false);
+    } else {
+      resultNode.put("lastPage", true);
+    }
     
     for (GrouperAdobeUser grouperAdobeUser : grouperAdobeUsers) {
-      valueNode.add(toUserJson(grouperAdobeUser));
+      ObjectNode userJsonNode = grouperAdobeUser.toJson(null);
+      valueNode.add(userJsonNode);
+      
+      // get groups for the user if any
+      List<GrouperAdobeMembership> grouperAdobeMemberships = HibernateSession.byHqlStatic().createQuery("select distinct m from GrouperAdobeMembership m where m.userId = :theUserId")
+          .setString("theUserId", grouperAdobeUsers.get(0).getId()).list(GrouperAdobeMembership.class);
+      
+      Set<String> groupNames = new HashSet<String>();
+      for (GrouperAdobeMembership membership: grouperAdobeMemberships) {
+        Long groupId = membership.getGroupId();
+        
+        List<GrouperAdobeGroup> grouperAdobeGroups = HibernateSession.byHqlStatic().createQuery("select distinct g from GrouperAdobeGroup g where g.id = :theGroupId")
+            .setLong("theGroupId", groupId).list(GrouperAdobeGroup.class);
+        
+        if (grouperAdobeGroups.size() == 1) {
+          groupNames.add(grouperAdobeGroups.get(0).getName());
+        }
+      }
+      
+      GrouperUtil.jsonJacksonAssignStringArray(userJsonNode, "groups", groupNames);
     }
     
-    resultNode.set("response", valueNode);
-    if (queryPaging.getTotalRecordCount() > offsetInt + grouperAdobeUsers.size()) {
-      ObjectNode metadataNode = GrouperUtil.jsonJacksonNode();
-      metadataNode.put("next_offset", offsetInt + limitInt);
-      resultNode.set("metadata", metadataNode);
+    resultNode.set("users", valueNode);
+//    if (queryPaging.getTotalRecordCount() > offsetInt + grouperAdobeUsers.size()) {
+//      ObjectNode metadataNode = GrouperUtil.jsonJacksonNode();
+//      metadataNode.put("next_offset", offsetInt + limitInt);
+//      resultNode.set("metadata", metadataNode);
+//    }
+    
+    mockServiceResponse.setResponseCode(200);
+    mockServiceResponse.setContentType("application/json");
+    mockServiceResponse.setResponseBody(GrouperUtil.jsonJacksonToString(resultNode));
+  }
+  
+  public void getGroups(MockServiceRequest mockServiceRequest, MockServiceResponse mockServiceResponse, String pageNum) {
+    
+    try {      
+      checkAuthorization(mockServiceRequest);
+    } catch (Exception e) {
+      e.printStackTrace();
+      mockServiceResponse.setResponseCode(401);
+      return;
     }
+
+    String offset = pageNum;
+    
+    int limitInt = 100;
+    
+    int offsetInt = 0;
+    int pageNumber = 1;
+    if (StringUtils.isNotBlank(offset)) {
+      offsetInt = GrouperUtil.intValue(offset);
+      pageNumber = offsetInt/limitInt + 1;
+    }
+    
+    List<GrouperAdobeGroup> grouperAdobeGroups = null;
+    
+    String hql = "select distinct grp from GrouperAdobeGroup grp";
+    
+    ByHqlStatic query = HibernateSession.byHqlStatic().createQuery(hql);
+    
+    QueryOptions queryOptions = new QueryOptions();
+    QueryPaging queryPaging = QueryPaging.page(limitInt, pageNumber, true);
+    queryOptions = queryOptions.paging(queryPaging);
+    
+    query.options(queryOptions);
+    
+    int totalRecordCount = queryOptions.getQueryPaging().getTotalRecordCount();
+    
+    grouperAdobeGroups = query.list(GrouperAdobeGroup.class);
+    
+    /**
+     * {
+          "lastPage": true,
+          "result": "success",
+          "groups": [{
+            "groupId": 4147407,
+            "groupName": "_org_admin",
+            "type": "SYSADMIN_GROUP",
+            "memberCount": 23
+          },
+          {
+            "groupId": 38324336,
+            "groupName": "Default Spark with Premium Features for Higher-Ed - 2 GB configuration",
+            "type": "PRODUCT_PROFILE",
+            "productName": "Creative Cloud Shared Device Access for Higher Education (ETLA,ETLA - DD211C79AB1DB19CBD0A)",
+            "licenseQuota": "UNLIMITED".  (integer or UNLIMITED), put this in Integer and -1 if UNLIMITED (null if not specified)
+          }]
+     */
+    
+    ObjectNode resultNode = GrouperUtil.jsonJacksonNode();
+    ArrayNode valueNode = GrouperUtil.jsonJacksonArrayNode();
+    
+    resultNode.put("result", "success");
+    if (queryPaging.getTotalRecordCount() > offsetInt + grouperAdobeGroups.size()) {
+      resultNode.put("lastPage", false);
+    } else {
+      resultNode.put("lastPage", true);
+    }
+    
+    for (GrouperAdobeGroup grouperAdobeGroup : grouperAdobeGroups) {
+      valueNode.add(grouperAdobeGroup.toJson(null));
+    }
+    
+    resultNode.set("groups", valueNode);
+//    if (queryPaging.getTotalRecordCount() > offsetInt + grouperAdobeUsers.size()) {
+//      ObjectNode metadataNode = GrouperUtil.jsonJacksonNode();
+//      metadataNode.put("next_offset", offsetInt + limitInt);
+//      resultNode.set("metadata", metadataNode);
+//    }
     
     mockServiceResponse.setResponseCode(200);
     mockServiceResponse.setContentType("application/json");
@@ -427,12 +445,13 @@ public class AdobeMockServiceHandler extends MockServiceHandler {
       return;
     }
 
-    String userId = mockServiceRequest.getPostMockNamePaths()[1];
+    String orgId = mockServiceRequest.getPostMockNamePaths()[1];
+    String userEmail = mockServiceRequest.getPostMockNamePaths()[3];
     
-    GrouperUtil.assertion(GrouperUtil.length(userId) > 0, "userId is required");
+    GrouperUtil.assertion(GrouperUtil.length(userEmail) > 0, "userEmail is required");
     
-    List<GrouperAdobeUser> grouperAdobeUsers = HibernateSession.byHqlStatic().createQuery("select distinct user from GrouperAdobeUser user left join user.groups groups where user.id = :theId")
-        .setString("theId", userId).list(GrouperAdobeUser.class);
+    List<GrouperAdobeUser> grouperAdobeUsers = HibernateSession.byHqlStatic().createQuery("select distinct user from GrouperAdobeUser user where user.email = :theEmail")
+        .setString("theEmail", userEmail).list(GrouperAdobeUser.class);
 
     if (GrouperUtil.length(grouperAdobeUsers) == 1) {
       mockServiceResponse.setResponseCode(200);
@@ -441,87 +460,51 @@ public class AdobeMockServiceHandler extends MockServiceHandler {
       
       ObjectNode resultNode = GrouperUtil.jsonJacksonNode();
       
-      resultNode.put("stat", "OK");
-      ObjectNode objectNode = toUserJson(grouperAdobeUsers.get(0));
+      resultNode.put("result", "success");
+      ObjectNode objectNode = grouperAdobeUsers.get(0).toJson(null);
       
-      resultNode.set("response", objectNode);
+      // get groups for the user if any
+      List<GrouperAdobeMembership> grouperAdobeMemberships = HibernateSession.byHqlStatic().createQuery("select distinct m from GrouperAdobeMembership m where m.userId = :theUserId")
+          .setString("theUserId", grouperAdobeUsers.get(0).getId()).list(GrouperAdobeMembership.class);
+      
+      Set<String> groupNames = new HashSet<String>();
+      for (GrouperAdobeMembership membership: grouperAdobeMemberships) {
+        Long groupId = membership.getGroupId();
+        
+        List<GrouperAdobeGroup> grouperAdobeGroups = HibernateSession.byHqlStatic().createQuery("select distinct g from GrouperAdobeGroup g where g.id = :theGroupId")
+            .setLong("theGroupId", groupId).list(GrouperAdobeGroup.class);
+        
+        if (grouperAdobeGroups.size() == 1) {
+          groupNames.add(grouperAdobeGroups.get(0).getName());
+        }
+      }
+      
+      GrouperUtil.jsonJacksonAssignStringArray(objectNode, "groups", groupNames);
+      resultNode.set("user", objectNode);
+      
+//      {
+//        "result": "success",
+//        "user": {
+//          "id": "abc123",
+//          "email": "jsmith@school.edu",
+//          "status": "active",
+//          "groups": ["Group1", "Group2"],
+//          "username": "JSMITH@SCHOOL.EDU",
+//          "domain": "upenn.edu",
+//          "firstname": "John",
+//          "lastname": "SMITH",
+//          "country": "US",
+//          "type": "federatedID"
+//        }
+//      }
       
       mockServiceResponse.setResponseBody(GrouperUtil.jsonJacksonToString(resultNode));
 
     } else if (GrouperUtil.length(grouperAdobeUsers) == 0) {
       mockServiceResponse.setResponseCode(404);
     } else {
-      throw new RuntimeException("userById: " + GrouperUtil.length(grouperAdobeUsers) + ", id: " + userId);
+      throw new RuntimeException("userByEmail: " + GrouperUtil.length(grouperAdobeUsers) + ", email: " + userEmail);
     }
-
-  }
-  
-  public void getGroupsByUser(MockServiceRequest mockServiceRequest, MockServiceResponse mockServiceResponse) {
-
-    try {      
-      checkAuthorization(mockServiceRequest);
-    } catch (Exception e) {
-      e.printStackTrace();
-      mockServiceResponse.setResponseCode(401);
-      return;
-    }
-
-    String userId = mockServiceRequest.getPostMockNamePaths()[1];
-    
-    GrouperUtil.assertion(GrouperUtil.length(userId) > 0, "userId is required");
-    
-    String offset = mockServiceRequest.getHttpServletRequest().getParameter("offset");
-    String limit = mockServiceRequest.getHttpServletRequest().getParameter("limit");
-    
-    int limitInt = 100;
-    if (StringUtils.isNotBlank(limit)) {
-      limitInt = GrouperUtil.intValue(limit);
-      if (limitInt <= 0) {
-        throw new RuntimeException("limit cannot be less than or equal to 0.");
-      }
-      if (limitInt > 500) {
-        limitInt = 500;
-      }
-    }
-    
-    int offsetInt = 0;
-    int pageNumber = 1;
-    if (StringUtils.isNotBlank(offset)) {
-      offsetInt = GrouperUtil.intValue(offset);
-      pageNumber = offsetInt/limitInt + 1;
-    }
-    
-    ByHqlStatic query = HibernateSession.byHqlStatic()
-        .createQuery("from GrouperAdobeGroup g where g.id in (select m.groupId from GrouperAdobeMembership m where m.userId = :theUserId) ")
-        .setString("theUserId", userId);
-    
-    QueryOptions queryOptions = new QueryOptions();
-    QueryPaging queryPaging = QueryPaging.page(limitInt, pageNumber , true);
-    queryOptions = queryOptions.paging(queryPaging);
-    
-    query.options(queryOptions);
-    
-    List<GrouperAdobeGroup> grouperAdobeGroups = query.list(GrouperAdobeGroup.class);
-
-    ObjectNode resultNode = GrouperUtil.jsonJacksonNode();
-    ArrayNode valueNode = GrouperUtil.jsonJacksonArrayNode();
-    
-    resultNode.put("stat", "OK");
-    
-    for (GrouperAdobeGroup grouperAdobeGroup : grouperAdobeGroups) {
-      valueNode.add(toGroupJson(grouperAdobeGroup));
-    }
-    
-    resultNode.set("response", valueNode);
-    if (queryPaging.getTotalRecordCount() > offsetInt + grouperAdobeGroups.size()) {
-      ObjectNode metadataNode = GrouperUtil.jsonJacksonNode();
-      metadataNode.put("next_offset", offsetInt + limitInt);
-      resultNode.set("metadata", metadataNode);
-    }
-    
-    mockServiceResponse.setResponseCode(200);
-    mockServiceResponse.setContentType("application/json");
-    mockServiceResponse.setResponseBody(GrouperUtil.jsonJacksonToString(resultNode));
 
   }
   
@@ -629,7 +612,7 @@ public class AdobeMockServiceHandler extends MockServiceHandler {
       
       //now save the relationship
       GrouperAdobeMembership grouperAdobeMembership = new GrouperAdobeMembership();
-      grouperAdobeMembership.setGroupId(groupId);
+      grouperAdobeMembership.setGroupId(Long.valueOf(groupId));
       grouperAdobeMembership.setUserId(userId);
       grouperAdobeMembership.setId(GrouperUuid.getUuid());
       
@@ -646,67 +629,6 @@ public class AdobeMockServiceHandler extends MockServiceHandler {
     mockServiceResponse.setResponseCode(200);
     mockServiceResponse.setContentType("application/json");
     mockServiceResponse.setResponseBody(GrouperUtil.jsonJacksonToString(resultNode)); 
-  }
-  
-  public void postUsers(MockServiceRequest mockServiceRequest, MockServiceResponse mockServiceResponse) {
-    try {      
-      checkAuthorization(mockServiceRequest);
-      checkRequestContentTypeAndDateHeader(mockServiceRequest);
-    } catch (Exception e) {
-      e.printStackTrace();
-      mockServiceResponse.setResponseCode(401);
-      return;
-    }
-
-    
-    String userName = mockServiceRequest.getHttpServletRequest().getParameter("username");
-    if (StringUtils.isBlank(userName)) {
-      mockServiceResponse.setResponseCode(400);
-      return;
-    }
-    
-    String realName = mockServiceRequest.getHttpServletRequest().getParameter("realname");
-    String email = mockServiceRequest.getHttpServletRequest().getParameter("email");
-    String firstName = mockServiceRequest.getHttpServletRequest().getParameter("firstname");
-    String lastName = mockServiceRequest.getHttpServletRequest().getParameter("lastname");
-
-    String alias1 = mockServiceRequest.getHttpServletRequest().getParameter("alias1");
-    String alias2 = mockServiceRequest.getHttpServletRequest().getParameter("alias2");
-    String alias3 = mockServiceRequest.getHttpServletRequest().getParameter("alias3");
-    String alias4 = mockServiceRequest.getHttpServletRequest().getParameter("alias4");
-    
-
-    GrouperAdobeUser grouperAdobeUser = new GrouperAdobeUser();
-    grouperAdobeUser.setId(GrouperUuid.getUuid());
-    grouperAdobeUser.setEmail(email);
-    grouperAdobeUser.setUserName(userName);
-    grouperAdobeUser.setFirstName(firstName);
-    grouperAdobeUser.setLastName(lastName);
-    
-    List<GrouperAdobeUser> grouperAdobeUsers = HibernateSession.byHqlStatic().createQuery("select user from GrouperAdobeUser user where user.userName = :userName ")
-        .setString("userName", grouperAdobeUser.getUserName())
-        .list(GrouperAdobeUser.class);
-    
-    if (grouperAdobeUsers != null && grouperAdobeUsers.size() > 0) {
-      mockServiceResponse.setResponseCode(400);
-      return;
-    }
-     
-    HibernateSession.byObjectStatic().save(grouperAdobeUser);
-    
-    ObjectNode resultNode = GrouperUtil.jsonJacksonNode();
-    
-    resultNode.put("stat", "OK");
-    ObjectNode objectNode = toUserJson(grouperAdobeUser);
-    
-    resultNode.set("response", objectNode);
-    
-    mockServiceResponse.setResponseBody(GrouperUtil.jsonJacksonToString(resultNode));
-
-    mockServiceResponse.setResponseCode(200);
-    mockServiceResponse.setContentType("application/json");
-    mockServiceResponse.setResponseBody(GrouperUtil.jsonJacksonToString(resultNode));
-    
   }
   
   public void updateUser(MockServiceRequest mockServiceRequest, MockServiceResponse mockServiceResponse) {
@@ -791,6 +713,397 @@ public class AdobeMockServiceHandler extends MockServiceHandler {
     
   }
   
+  public void handleAllActions(MockServiceRequest mockServiceRequest, MockServiceResponse mockServiceResponse) {
+    
+    try {      
+      checkAuthorization(mockServiceRequest);
+    } catch (Exception e) {
+      e.printStackTrace();
+      mockServiceResponse.setResponseCode(401);
+      return;
+    }
+    
+    String jsonString = mockServiceRequest.getRequestBody();
+    ArrayNode arrayNode = (ArrayNode) GrouperUtil.jsonJacksonNode(jsonString);
+    
+    JsonNode jsonNode = arrayNode.get(0);
+    
+    if (jsonNode.has("user")) {
+      crudOnUser(jsonNode, mockServiceResponse);
+    } else if (jsonNode.has("usergroup")) {
+      crudOnUserGroup(jsonNode, mockServiceResponse);
+    }
+    
+    int completed = 0;
+    int notCompleted = 0;
+    int completedInTestMode = 0;
+    
+//    [
+//     {
+//       "user": "abc@school.edu",
+//       "do": [
+//         {
+//           "addAdobeID|createFederatedID|createEnterpriseID": {
+//             "email": "abc@school.edu",
+//             "country": "US",
+//             "firstname": "AbcTest",
+//             "lastname": "AbcTest"
+//           }
+//         }
+//       ]
+//     }
+//   ]
+    
+    System.out.println(jsonString);
+    
+    ObjectNode resultNode = GrouperUtil.jsonJacksonNode();
+    
+    resultNode.put("completed", 1);
+    resultNode.put("notCompleted", 0);
+    resultNode.put("completedInTestMode", 0);
+    resultNode.put("result", "success");
+    
+    mockServiceResponse.setResponseCode(200);
+    mockServiceResponse.setContentType("application/json");
+    mockServiceResponse.setResponseBody(GrouperUtil.jsonJacksonToString(resultNode));
+    
+//    {"completed":1,"notCompleted":0,"completedInTestMode":0,"result":"success"}
+    
+  }
+  
+  public void crudOnUserGroup(JsonNode jsonNode, MockServiceResponse mockServiceResponse) {
+    
+    String groupName = GrouperUtil.jsonJacksonGetString(jsonNode, "usergroup");
+    ArrayNode operations = GrouperUtil.jsonJacksonGetArrayNode(jsonNode, "do");
+    
+    JsonNode oneOperation = operations.get(0);
+    
+    if (oneOperation.has("createUserGroup")) {
+      createGroup(oneOperation.get("createUserGroup"), groupName);
+    } else if (oneOperation.has("deleteUserGroup")) {
+      deleteGroup(groupName);
+    } else if (oneOperation.has("updateUserGroup")) {
+      updateGroup(oneOperation.get("updateUserGroup"), groupName);
+    }
+  }
+  
+  public void updateGroup(JsonNode jsonNode, String oldGroupName) {
+    /**
+     * [
+      {
+        "usergroup": "OLD_GROUP_NAME",
+        "do": [
+                {
+                  "updateUserGroup": {
+                    "name": "NEW_GROUP_NAME"
+                  }
+                }
+             ]
+      }
+    ]
+     */
+    
+    List<GrouperAdobeGroup> grouperAdobeGroups = HibernateSession.byHqlStatic().createQuery(
+        "from GrouperAdobeGroup where name = :name")
+        .setString("name", oldGroupName).list(GrouperAdobeGroup.class);
+    
+    if (GrouperUtil.length(grouperAdobeGroups) == 0) {
+      throw new RuntimeException("Can't find group");
+    }
+    if (GrouperUtil.length(grouperAdobeGroups) > 1) {
+      throw new RuntimeException("Found multiple matched groups! " + GrouperUtil.length(grouperAdobeGroups));
+    }
+    
+    GrouperAdobeGroup grouperAdobeGroup = grouperAdobeGroups.get(0);
+    if (jsonNode.has("name")) {
+      grouperAdobeGroup.setName(GrouperUtil.jsonJacksonGetString(jsonNode, "name"));
+    }
+    HibernateSession.byObjectStatic().save(grouperAdobeGroup); 
+  }
+  
+  public void deleteGroup(String groupName) {
+    /**
+     * [
+        {
+          "usergroup": "GROUP_NAME",
+          "do": [
+                  {
+                    "deleteUserGroup": {
+                    }
+                  }
+               ]
+        }
+      ]
+     */
+    
+    List<GrouperAdobeGroup> grouperAdobeGroups = HibernateSession.byHqlStatic().createQuery(
+        "from GrouperAdobeGroup where name = :name")
+        .setString("name", groupName).list(GrouperAdobeGroup.class);
+    
+    if (GrouperUtil.length(grouperAdobeGroups) == 0) {
+      throw new RuntimeException("Can't find group");
+    }
+    if (GrouperUtil.length(grouperAdobeGroups) > 1) {
+      throw new RuntimeException("Found multiple matched groups! " + GrouperUtil.length(grouperAdobeGroups));
+    }
+    
+    GrouperAdobeGroup grouperAdobeGroup = grouperAdobeGroups.get(0);
+    HibernateSession.byHqlStatic()
+    .createQuery("delete from GrouperAdobeGroup where id = :theGroupId")
+    .setLong("theGroupId", grouperAdobeGroup.getId())
+    .executeUpdateInt();
+  }
+  
+  public void createGroup(JsonNode jsonNode, String groupName) {
+    
+    /**
+     * [
+        {
+          "usergroup": "myTestGroup",
+          "do": [
+                  {
+                    "createUserGroup": {
+                      "name": "myTestGroup",
+                      "option": "ignoreIfAlreadyExists"
+                    }
+                  }
+               ]
+        }
+      ]
+     */
+    
+    GrouperAdobeGroup grouperAdobeGroup = new GrouperAdobeGroup();
+    grouperAdobeGroup.setId(RandomUtils.nextLong());
+    grouperAdobeGroup.setName(groupName);
+//    grouperAdobeGroup.setProductName(productName);
+    
+    List<GrouperAdobeGroup> grouperAdobeGroups = HibernateSession.byHqlStatic().createQuery("select group from GrouperAdobeGroup group where group.name = :name")
+        .setString("name", groupName)
+        .list(GrouperAdobeGroup.class);
+    
+    if (grouperAdobeGroups != null && grouperAdobeGroups.size() > 0) {
+      throw new RuntimeException("Group already exists with name: "+groupName);
+    }
+     
+    HibernateSession.byObjectStatic().save(grouperAdobeGroup);
+  }
+  
+  public void crudOnUser(JsonNode jsonNode, MockServiceResponse mockServiceResponse) {
+    
+    String email = GrouperUtil.jsonJacksonGetString(jsonNode, "user");
+    ArrayNode operations = GrouperUtil.jsonJacksonGetArrayNode(jsonNode, "do");
+    
+    JsonNode oneOperation = operations.get(0);
+    
+    if (oneOperation.has("addAdobeID")) {
+       createUser(oneOperation.get("addAdobeID"), email, "adobeID");
+    } else if (oneOperation.has("createFederatedID")) {
+       createUser(oneOperation.get("createFederatedID"), email, "federatedID");
+    } else if (oneOperation.has("createEnterpriseID")) {
+       createUser(oneOperation.get("createEnterpriseID"), email, "enterpriseID");
+    } else if (oneOperation.has("update")) {
+      updateUser(oneOperation.get("update"), email);
+    } else if (oneOperation.has("add")) {
+      addUserToGroups(oneOperation.get("add"), email);
+    } else if (oneOperation.has("remove")) {
+      removeUserFromGroups(oneOperation.get("remove"), email);
+    } else if (oneOperation.has("removeFromOrg")) {
+      removeUser(email);
+    }
+    
+  }
+  
+  public void removeUser(String email) {
+    /**
+     * [
+        {
+          "user": "abc@upenn.edu",
+          "do": [
+            {
+              "removeFromOrg": {
+                "deleteAccount": true/false
+              }
+            }
+          ]
+        }
+      ]
+     */
+    
+    List<GrouperAdobeUser> grouperAdobeUsers = HibernateSession.byHqlStatic().createQuery(
+        "from GrouperAdobeUser where email = :email")
+        .setString("email", email).list(GrouperAdobeUser.class);
+    
+    if (GrouperUtil.length(grouperAdobeUsers) == 0) {
+      throw new RuntimeException("Can't find user");
+    }
+    if (GrouperUtil.length(grouperAdobeUsers) > 1) {
+      throw new RuntimeException("Found multiple matched users! " + GrouperUtil.length(grouperAdobeUsers));
+    }
+    
+    GrouperAdobeUser grouperAdobeUser = grouperAdobeUsers.get(0);
+    HibernateSession.byHqlStatic()
+    .createQuery("delete from GrouperAdobeUser where user_id = :theUserId")
+    .setString("theUserId", grouperAdobeUser.getId())
+    .executeUpdateInt();
+    
+  }
+  
+  public void removeUserFromGroups(JsonNode jsonNode, String email) {
+    
+    /**
+     * [
+        {
+          "user": "abc@upenn.edu",
+          "do": [
+            {
+              "remove": {
+                "group": [
+                  "HireIT ISC - CCE Pro - Acrobat Pro DC"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+     */
+    
+    Set<String> groups = GrouperUtil.jsonJacksonGetStringSet(jsonNode, "group");
+    
+    List<GrouperAdobeUser> grouperAdobeUsers = HibernateSession.byHqlStatic().createQuery(
+        "from GrouperAdobeUser where email = :email")
+        .setString("email", email).list(GrouperAdobeUser.class);
+    
+    if (GrouperUtil.length(grouperAdobeUsers) == 0) {
+      throw new RuntimeException("Can't find user");
+    }
+    if (GrouperUtil.length(grouperAdobeUsers) > 1) {
+      throw new RuntimeException("Found multiple matched users! " + GrouperUtil.length(grouperAdobeUsers));
+    }
+    
+    GrouperAdobeUser grouperAdobeUser = grouperAdobeUsers.get(0);
+    
+    for (String group: groups) {
+      List<GrouperAdobeGroup> grouperAdobeGroups = HibernateSession.byHqlStatic().createQuery("select group from GrouperAdobeGroup group where group.name = :groupName")
+          .setString("groupName", group)
+          .list(GrouperAdobeGroup.class);
+      
+      if (grouperAdobeGroups.size() == 0 || grouperAdobeGroups.size() > 1) {
+        throw new RuntimeException("Zero or more than 1 group for "+group);
+      }
+      
+      
+     HibernateSession.byHqlStatic()
+          .createQuery("delete from GrouperAdobeMembership where groupId = :theGroupId and userId = :theUserId")
+          .setLong("theGroupId", grouperAdobeGroups.get(0).getId())
+          .setString("theUserId", grouperAdobeUser.getId())
+          .executeUpdateInt();
+    }
+  }
+  
+  public void addUserToGroups(JsonNode jsonNode, String email) {
+    /**
+     * [
+        {
+          "user": "abc@upenn.edu",
+          "do": [
+            {
+              "add": {
+                "group": [
+                  "HireIT ISC - CCE Pro - Acrobat Pro DC"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+     */
+    
+    Set<String> groups = GrouperUtil.jsonJacksonGetStringSet(jsonNode, "group");
+    
+    List<GrouperAdobeUser> grouperAdobeUsers = HibernateSession.byHqlStatic().createQuery(
+        "from GrouperAdobeUser where email = :email")
+        .setString("email", email).list(GrouperAdobeUser.class);
+    
+    if (GrouperUtil.length(grouperAdobeUsers) == 0) {
+      throw new RuntimeException("Can't find user");
+    }
+    if (GrouperUtil.length(grouperAdobeUsers) > 1) {
+      throw new RuntimeException("Found multiple matched users! " + GrouperUtil.length(grouperAdobeUsers));
+    }
+    
+    GrouperAdobeUser grouperAdobeUser = grouperAdobeUsers.get(0);
+    
+    for (String group: groups) {
+      List<GrouperAdobeGroup> grouperAdobeGroups = HibernateSession.byHqlStatic().createQuery("select group from GrouperAdobeGroup group where group.name = :groupName")
+          .setString("groupName", group)
+          .list(GrouperAdobeGroup.class);
+      
+      if (grouperAdobeGroups.size() == 0 || grouperAdobeGroups.size() > 1) {
+        throw new RuntimeException("Zero or more than 1 group for "+group);
+      }
+      
+      GrouperAdobeMembership membership = new GrouperAdobeMembership();
+      membership.setGroupId(grouperAdobeGroups.get(0).getId());
+      membership.setUserId(grouperAdobeUser.getId());
+      membership.setId(GrouperUuid.getUuid());
+      HibernateSession.byObjectStatic().save(membership);
+    }
+    
+  }
+  
+  public void updateUser(JsonNode jsonNode, String email) {
+    
+    List<GrouperAdobeUser> grouperAdobeUsers = HibernateSession.byHqlStatic().createQuery(
+        "from GrouperAdobeUser where email = :email")
+        .setString("email", email).list(GrouperAdobeUser.class);
+    
+    if (GrouperUtil.length(grouperAdobeUsers) == 0) {
+      throw new RuntimeException("Can't find user");
+    }
+    if (GrouperUtil.length(grouperAdobeUsers) > 1) {
+      throw new RuntimeException("Found multiple matched users! " + GrouperUtil.length(grouperAdobeUsers));
+    }
+    
+    GrouperAdobeUser grouperAdobeUser = grouperAdobeUsers.get(0);
+    if (jsonNode.has("firtname")) {
+      grouperAdobeUser.setFirstName(GrouperUtil.jsonJacksonGetString(jsonNode, "firstname"));
+    }
+    if (jsonNode.has("lastname")) {
+      grouperAdobeUser.setLastName(GrouperUtil.jsonJacksonGetString(jsonNode, "lastname"));
+    }
+    if (jsonNode.has("country")) {
+      grouperAdobeUser.setCountry(GrouperUtil.jsonJacksonGetString(jsonNode, "country"));
+    }
+    if (jsonNode.has("email")) {
+      grouperAdobeUser.setEmail(GrouperUtil.jsonJacksonGetString(jsonNode, "email"));
+    }
+    
+    HibernateSession.byObjectStatic().saveOrUpdate(grouperAdobeUser);    
+    
+  }
+  
+  public void createUser(JsonNode jsonNode, String email, String type) {
+    
+    GrouperAdobeUser grouperAdobeUser = new GrouperAdobeUser();
+    grouperAdobeUser.setId(GrouperUuid.getUuid());
+    grouperAdobeUser.setEmail(email);
+//    grouperAdobeUser.setUserName(userName);
+    
+    grouperAdobeUser.setFirstName(GrouperUtil.jsonJacksonGetString(jsonNode, "firstname"));
+    grouperAdobeUser.setLastName(GrouperUtil.jsonJacksonGetString(jsonNode, "lastname"));
+    grouperAdobeUser.setCountry(GrouperUtil.jsonJacksonGetString(jsonNode, "country"));
+    grouperAdobeUser.setType(type);
+    
+    List<GrouperAdobeUser> grouperAdobeUsers = HibernateSession.byHqlStatic().createQuery("select user from GrouperAdobeUser user where user.email = :email ")
+        .setString("email", grouperAdobeUser.getEmail())
+        .list(GrouperAdobeUser.class);
+    
+    if (grouperAdobeUsers != null && grouperAdobeUsers.size() > 0) {
+      throw new RuntimeException("User already exists with email: "+email);
+    }
+     
+    HibernateSession.byObjectStatic().save(grouperAdobeUser);    
+  }
   
   public void postGroups(MockServiceRequest mockServiceRequest, MockServiceResponse mockServiceResponse) {
     try {      
@@ -820,7 +1133,7 @@ public class AdobeMockServiceHandler extends MockServiceHandler {
     ObjectNode resultNode = GrouperUtil.jsonJacksonNode();
     
     resultNode.put("stat", "OK");
-    ObjectNode objectNode = toGroupJson(grouperAdobeGroup);
+    ObjectNode objectNode = grouperAdobeGroup.toJson(null);
     
     resultNode.set("response", objectNode);
     
@@ -900,7 +1213,7 @@ public class AdobeMockServiceHandler extends MockServiceHandler {
     resultNode.put("result", "success");
     
     for (GrouperAdobeGroup grouperAdobeGroup : grouperAdobeGroups) {
-      valueNode.add(toGroupJson(grouperAdobeGroup));
+      valueNode.add(grouperAdobeGroup.toJson(null));
     }
     
     resultNode.set("groups", valueNode);
@@ -915,76 +1228,6 @@ public class AdobeMockServiceHandler extends MockServiceHandler {
     mockServiceResponse.setResponseBody(GrouperUtil.jsonJacksonToString(resultNode));
   }
   
-  
-  public void getUsersByGroup(MockServiceRequest mockServiceRequest, MockServiceResponse mockServiceResponse) {
-    try {      
-      checkAuthorization(mockServiceRequest);
-    } catch (Exception e) {
-      e.printStackTrace();
-      mockServiceResponse.setResponseCode(401);
-      return;
-    }
-
-    String groupId = mockServiceRequest.getPostMockNamePaths()[1];
-    
-    GrouperUtil.assertion(GrouperUtil.length(groupId) > 0, "groupId is required");
-    
-    String offset = mockServiceRequest.getHttpServletRequest().getParameter("offset");
-    String limit = mockServiceRequest.getHttpServletRequest().getParameter("limit");
-    
-    int limitInt = 100;
-    if (StringUtils.isNotBlank(limit)) {
-      limitInt = GrouperUtil.intValue(limit);
-      if (limitInt <= 0) {
-        throw new RuntimeException("limit cannot be less than or equal to 0.");
-      }
-      if (limitInt > 500) {
-        limitInt = 500;
-      }
-    }
-    
-    int offsetInt = 0;
-    int pageNumber = 1;
-    if (StringUtils.isNotBlank(offset)) {
-      offsetInt = GrouperUtil.intValue(offset);
-      pageNumber = offsetInt/limitInt + 1;
-    }
-    
-    List<GrouperAdobeUser> grouperAdobeUsers = null;
-    
-    ByHqlStatic query = HibernateSession.byHqlStatic()
-        .createQuery("from GrouperAdobeUser u where u.id in (select m.userId from GrouperAdobeMembership m where m.groupId = :theGroupId) ")
-        .setString("theGroupId", groupId);
-    
-    QueryOptions queryOptions = new QueryOptions();
-    QueryPaging queryPaging = QueryPaging.page(limitInt, pageNumber , true);
-    queryOptions = queryOptions.paging(queryPaging);
-    
-    query.options(queryOptions);
-    
-    grouperAdobeUsers = query.list(GrouperAdobeUser.class);
-    
-    ObjectNode resultNode = GrouperUtil.jsonJacksonNode();
-    ArrayNode valueNode = GrouperUtil.jsonJacksonArrayNode();
-    
-    resultNode.put("stat", "OK");
-    
-    for (GrouperAdobeUser grouperAdobeUser : grouperAdobeUsers) {
-      valueNode.add(toUserJson(grouperAdobeUser));
-    }
-    
-    resultNode.set("response", valueNode);
-    if (queryPaging.getTotalRecordCount() > offsetInt + grouperAdobeUsers.size()) {
-      ObjectNode metadataNode = GrouperUtil.jsonJacksonNode();
-      metadataNode.put("next_offset", offsetInt + limitInt);
-      resultNode.set("metadata", metadataNode);
-    }
-    
-    mockServiceResponse.setResponseCode(200);
-    mockServiceResponse.setContentType("application/json");
-    mockServiceResponse.setResponseBody(GrouperUtil.jsonJacksonToString(resultNode));
-    
-  }
   
   public void getGroup(MockServiceRequest mockServiceRequest, MockServiceResponse mockServiceResponse) {
 
@@ -1012,7 +1255,7 @@ public class AdobeMockServiceHandler extends MockServiceHandler {
       ObjectNode resultNode = GrouperUtil.jsonJacksonNode();
       
       resultNode.put("stat", "OK");
-      ObjectNode objectNode = toGroupJson(grouperAdobeGroups.get(0));
+      ObjectNode objectNode = grouperAdobeGroups.get(0).toJson(null);
       
       resultNode.set("response", objectNode);
       
@@ -1026,145 +1269,76 @@ public class AdobeMockServiceHandler extends MockServiceHandler {
 
   }
   
-  public void updateGroup(MockServiceRequest mockServiceRequest, MockServiceResponse mockServiceResponse) {
-    try {      
-      checkAuthorization(mockServiceRequest);
-      checkRequestContentTypeAndDateHeader(mockServiceRequest);
-    } catch (Exception e) {
-      e.printStackTrace();
-      mockServiceResponse.setResponseCode(401);
-      return;
-    }
-
-
-    // patch a group
-    String groupId = mockServiceRequest.getPostMockNamePaths()[1];
-    
-    mockServiceRequest.getDebugMap().put("groupId", groupId);
-
-    List<GrouperAdobeGroup> grouperAdobeGroups = HibernateSession.byHqlStatic().createQuery(
-        "from GrouperAdobeGroup where group_id = :theId")
-        .setString("theId", groupId).list(GrouperAdobeGroup.class);
-    
-    if (GrouperUtil.length(grouperAdobeGroups) == 0) {
-      mockServiceRequest.getDebugMap().put("cantFindGroup", true);
-      mockServiceResponse.setResponseCode(404);
-      return;
-    }
-    if (GrouperUtil.length(grouperAdobeGroups) > 1) {
-      throw new RuntimeException("Found multiple matched groups! " + GrouperUtil.length(grouperAdobeGroups));
-    }
-    GrouperAdobeGroup grouperAdobeGroup = grouperAdobeGroups.get(0);
-    
-    String groupName = mockServiceRequest.getHttpServletRequest().getParameter("name");
-    if (StringUtils.isNotBlank(groupName)) {
-      grouperAdobeGroup.setName(groupName);
-    }
-    
-
-    HibernateSession.byObjectStatic().saveOrUpdate(grouperAdobeGroup);
-    
-    ObjectNode resultNode = GrouperUtil.jsonJacksonNode();
-    
-    resultNode.put("stat", "OK");
-    ObjectNode objectNode = toGroupJson(grouperAdobeGroup);
-    
-    resultNode.set("response", objectNode);
-    
-    mockServiceResponse.setResponseBody(GrouperUtil.jsonJacksonToString(resultNode));
-
-    mockServiceResponse.setResponseCode(200);
-    mockServiceResponse.setContentType("application/json");
-    mockServiceResponse.setResponseBody(GrouperUtil.jsonJacksonToString(resultNode)); 
-  }
-  
   private static long lastDeleteMillis = -1;
+  
   
   public void postAuth(MockServiceRequest mockServiceRequest, MockServiceResponse mockServiceResponse) {
     
-    String clientId = mockServiceRequest.getHttpServletRequest().getParameter("client_id");
-    if (StringUtils.isBlank(clientId)) {
-      throw new RuntimeException("client_id is required!");
-    }
-    
-    Pattern clientIdPattern = Pattern.compile("^grouper\\.duoConnector\\.([^.]+)\\.clientId$");
-    String configId = null;
-    for (String propertyName : GrouperLoaderConfig.retrieveConfig().propertyNames()) {
-      
-      Matcher matcher = clientIdPattern.matcher(propertyName);
-      if (matcher.matches()) {
-        if (StringUtils.equals(GrouperLoaderConfig.retrieveConfig().propertyValueString(propertyName), clientId)) {
-          configId = matcher.group(1);
-          break;
-        }
-      }
-    }
-    
-    if (StringUtils.isBlank(configId)) {
-      throw new RuntimeException("Cant find client id!");
-    }
-
-    String clientSecret = GrouperLoaderConfig.retrieveConfig().propertyValueStringRequired("grouper.azureConnector." + configId + ".clientSecret");
-    clientSecret = Morph.decryptIfFile(clientSecret);
-    if (!StringUtils.equals(clientSecret, mockServiceRequest.getHttpServletRequest().getParameter("client_secret"))) {
-      throw new RuntimeException("Cant find client secret!");
-    }
-    
-    String tenantId = GrouperLoaderConfig.retrieveConfig().propertyValueStringRequired("grouper.duoConnector." + configId + ".tenantId");
-    
-    if (4 != mockServiceRequest.getPostMockNamePaths().length
-        || !StringUtils.equals(tenantId, mockServiceRequest.getPostMockNamePaths()[1])
-        || !StringUtils.equals("oauth2", mockServiceRequest.getPostMockNamePaths()[2])
-        || !StringUtils.equals("token", mockServiceRequest.getPostMockNamePaths()[3])
-        ) {
-      throw new RuntimeException("Invalid request! expecting: auth/<tenantId>/oauth2/token");
-    }
-    
     String grantType = mockServiceRequest.getHttpServletRequest().getParameter("grant_type");
-    if (!StringUtils.equals("client_credentials", grantType)) {
-      throw new RuntimeException("Invalid request! client_credentials must equal 'grant_type'");
+    String clientId = mockServiceRequest.getHttpServletRequest().getParameter("client_id");
+    String clientSecret = mockServiceRequest.getHttpServletRequest().getParameter("client_secret");
+    
+    if (StringUtils.isBlank(grantType) || StringUtils.isBlank(clientId) || StringUtils.isBlank(clientSecret)) {
+      throw new RuntimeException("grant_type, client_id, and client_secret are required!");
     }
-    String resourceConfig = GrouperLoaderConfig.retrieveConfig().propertyValueStringRequired("grouper.duoConnector." + configId + ".resource");
-    String resourceHttp =  mockServiceRequest.getHttpServletRequest().getParameter("resource");
-    if (StringUtils.isBlank(resourceConfig) || !StringUtils.equals(resourceConfig, resourceHttp)) {
-      throw new RuntimeException("Invalid request! resource: '" + resourceHttp + "' must equal '" + resourceConfig + "'");
+    
+    if (!StringUtils.equals(grantType, "client_credentials")) {
+      throw new RuntimeException("grant_type must be set to client_credentials");
     }
+    
+    String configId = GrouperConfig.retrieveConfig().propertyValueString("grouperTest.adobe.mock.configId");
+    
+    if (StringUtils.equals(grantType, "client_credentials")) {
+      
+      String expectedClientId = GrouperLoaderConfig.retrieveConfig().propertyValueStringRequired("grouper.wsBearerToken." + configId + ".clientId");
+      if (StringUtils.isBlank(expectedClientId)) {
+        expectedClientId = "put client id here that you have in adobe external system";
+      }
 
-    mockServiceResponse.setResponseCode(200);
-
-    ObjectNode resultNode = GrouperUtil.jsonJacksonNode();
-    
-    //expires in a minute
-    long expiresOnSeconds = System.currentTimeMillis()/1000 + 60;
-    
-    resultNode.put("expires_on", expiresOnSeconds);
-    
-    String accessToken = GrouperUuid.getUuid();
-    
-//    GrouperAzureAuth grouperAzureAuth = new GrouperAzureAuth();
-//    grouperAzureAuth.setConfigId(configId);
-//    grouperAzureAuth.setAccessToken(accessToken);
-//    grouperAzureAuth.setExpiresOnSeconds(expiresOnSeconds);
-//    HibernateSession.byObjectStatic().save(grouperAzureAuth);
-    
-    resultNode.put("access_token", accessToken);
-    
-    mockServiceResponse.setContentType("application/json");
-    mockServiceResponse.setResponseBody(GrouperUtil.jsonJacksonToString(resultNode));
+      String expectedClientSecret = GrouperLoaderConfig.retrieveConfig().propertyValueStringRequired("grouper.wsBearerToken." + configId + ".clientSecret");
+      if (StringUtils.isBlank(expectedClientSecret)) {
+        expectedClientSecret = "put client secret here that you have in adobe external system";
+      }
+      
+      if (!StringUtils.equals(expectedClientId, clientId) && !StringUtils.equals(expectedClientSecret, clientSecret)) {
+        throw new RuntimeException("client id and/or client secret don't match");
+      }
+      
+      ObjectNode resultNode = GrouperUtil.jsonJacksonNode();
+      
+      long expiresOnSeconds = System.currentTimeMillis()/1000 + 60;
+      
+      resultNode.put("expires_in", expiresOnSeconds);
+      
+      String accessToken = GrouperUuid.getUuid();
+      
+      GrouperAdobeAuth grouperAdobeAuth = new GrouperAdobeAuth();
+      grouperAdobeAuth.setConfigId(configId);
+      grouperAdobeAuth.setAccessToken(accessToken);
+      grouperAdobeAuth.setExpiresOnSeconds(expiresOnSeconds);
+      HibernateSession.byObjectStatic().save(grouperAdobeAuth);
+      
+      resultNode.put("access_token", accessToken);
+      
+      mockServiceResponse.setResponseCode(200);
+      mockServiceResponse.setContentType("application/json");
+      mockServiceResponse.setResponseBody(GrouperUtil.jsonJacksonToString(resultNode));
+      
+    }
     
     //delete if its been a while
     if (System.currentTimeMillis() - lastDeleteMillis > 1000*60*60) {
       lastDeleteMillis = System.currentTimeMillis();
       
-      long secondsToDelete = System.currentTimeMillis()/1000 - 60*60;
+      long secondsToDelete = 60*60;
       
-//      int accessTokensDeleted = HibernateSession.byHqlStatic()
-//        .createQuery("delete from GrouperAzureAuth where expiresOnSeconds < :theExpiresOnSeconds")
-//        .setLong("theExpiresOnSeconds", secondsToDelete).executeUpdateInt();
-//      
-//      if (accessTokensDeleted > 0) {
-//        mockServiceRequest.getDebugMap().put("accessTokensDeleted", accessTokensDeleted);
-//      }
+      int accessTokensDeleted = HibernateSession.byHqlStatic()
+        .createQuery("delete from GrouperAdobeAuth where expiresOnSeconds < :theExpiresOnSeconds")
+        .setLong("theExpiresOnSeconds", secondsToDelete).executeUpdateInt();
+      
+      if (accessTokensDeleted > 0) {
+        mockServiceRequest.getDebugMap().put("accessTokensDeleted", accessTokensDeleted);
+      }
     }
     
   }
@@ -1236,59 +1410,6 @@ public class AdobeMockServiceHandler extends MockServiceHandler {
     mockServiceResponse.setContentType("application/json");
     mockServiceResponse.setResponseBody(GrouperUtil.jsonJacksonToString(resultNode)); 
         
-  }
-  
-  /**
-   * convert from jackson json
-   * @param grouperAdobeUser
-   * @return the grouper duo user
-   */
-  private static ObjectNode toUserJson(GrouperAdobeUser grouperAdobeUser) {
-    
-    ObjectNode result = GrouperUtil.jsonJacksonNode();
-    
-    ObjectNode aliasesObjectNode = result.putObject("aliases");
-    
-    GrouperUtil.jsonJacksonAssignString(result, "email", grouperAdobeUser.getEmail());
-    GrouperUtil.jsonJacksonAssignString(result, "firstname", grouperAdobeUser.getFirstName());
-    
-    ArrayNode groupsNode = GrouperUtil.jsonJacksonArrayNode();
-    
-//    for (GrouperAdobeGroup grouperAdobeGroup: GrouperUtil.nonNull(grouperAdobeUser.getGroups())) {
-//      groupsNode.add(toGroupJson(grouperAdobeGroup));
-//    }
-    
-    result.set("groups", groupsNode);
-
-    GrouperUtil.jsonJacksonAssignString(result, "lastname", grouperAdobeUser.getLastName());
-    GrouperUtil.jsonJacksonAssignString(result, "status", grouperAdobeUser.getStatus());
-    GrouperUtil.jsonJacksonAssignStringArray(result, "tokens", new ArrayList<String>());
-    GrouperUtil.jsonJacksonAssignStringArray(result, "u2ftokens", new ArrayList<String>());
-    
-    GrouperUtil.jsonJacksonAssignString(result, "user_id", grouperAdobeUser.getId());
-    GrouperUtil.jsonJacksonAssignString(result, "username", grouperAdobeUser.getUserName());
-    GrouperUtil.jsonJacksonAssignStringArray(result, "webauthncredentials", new ArrayList<String>());
-    
-    return result;
-  }
-  
-  /**
-   * convert from jackson json
-   * @param grouperAdobeGroup
-   * @return the group
-   */
-  private static ObjectNode toGroupJson(GrouperAdobeGroup grouperAdobeGroup) {
-    ObjectNode result = GrouperUtil.jsonJacksonNode();
-
-    result.put("name", grouperAdobeGroup.getName());
-    result.put("group_id", grouperAdobeGroup.getId());
-    result.put("mobile_otp_enabled", false);
-    result.put("push_enabled", false);
-    result.put("sms_enabled", false);
-    result.put("voice_enabled", false);
-    result.put("status", "active");
-    
-    return result;
   }
 
 }
