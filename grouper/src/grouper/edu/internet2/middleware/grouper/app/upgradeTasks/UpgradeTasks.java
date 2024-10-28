@@ -441,6 +441,17 @@ public enum UpgradeTasks implements UpgradeTasksInterface {
                 otherJobInput.getHib3GrouperLoaderLog().appendJobMessage(", dropped view grouper_sql_cache_mship_v");
               }
               
+              // drop dependency - it won't be dropped in mysql when the column is dropped
+              if (GrouperDdlUtils.assertIndexExists("grouper_sql_cache_mship", "grouper_sql_cache_mship1_idx")) {                
+                if (GrouperDdlUtils.isMysql()) {
+                  new GcDbAccess().sql("DROP INDEX grouper_sql_cache_mship1_idx ON grouper_sql_cache_mship").executeSql();
+                } else {
+                  new GcDbAccess().sql("DROP INDEX grouper_sql_cache_mship1_idx").executeSql();
+                }
+                
+                otherJobInput.getHib3GrouperLoaderLog().appendJobMessage(", dropped index grouper_sql_cache_mship1_idx");
+              }
+              
               // add new temporary column if it doesn't exist
               if (!GrouperDdlUtils.assertColumnThere(true, "grouper_sql_cache_mship", "flattened_add_timestamp_temp")) {
                 if (GrouperDdlUtils.isOracle()) {
