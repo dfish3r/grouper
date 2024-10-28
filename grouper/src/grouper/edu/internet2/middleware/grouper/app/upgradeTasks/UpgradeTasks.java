@@ -441,17 +441,6 @@ public enum UpgradeTasks implements UpgradeTasksInterface {
                 otherJobInput.getHib3GrouperLoaderLog().appendJobMessage(", dropped view grouper_sql_cache_mship_v");
               }
               
-              // drop dependency - it won't be dropped in mysql when the column is dropped
-              if (GrouperDdlUtils.assertIndexExists("grouper_sql_cache_mship", "grouper_sql_cache_mship1_idx")) {                
-                if (GrouperDdlUtils.isMysql()) {
-                  new GcDbAccess().sql("DROP INDEX grouper_sql_cache_mship1_idx ON grouper_sql_cache_mship").executeSql();
-                } else {
-                  new GcDbAccess().sql("DROP INDEX grouper_sql_cache_mship1_idx").executeSql();
-                }
-                
-                otherJobInput.getHib3GrouperLoaderLog().appendJobMessage(", dropped index grouper_sql_cache_mship1_idx");
-              }
-              
               // add new temporary column if it doesn't exist
               if (!GrouperDdlUtils.assertColumnThere(true, "grouper_sql_cache_mship", "flattened_add_timestamp_temp")) {
                 if (GrouperDdlUtils.isOracle()) {
@@ -513,9 +502,20 @@ public enum UpgradeTasks implements UpgradeTasksInterface {
             otherJobInput.getHib3GrouperLoaderLog().appendJobMessage(", renamed column grouper_sql_cache_mship.flattened_add_timestamp_temp to flattened_add_timestamp");
           }
           
-          if (!GrouperDdlUtils.assertIndexExists("grouper_sql_cache_mship", "grouper_sql_cache_mship1_idx")) {
-            new GcDbAccess().sql("CREATE INDEX grouper_sql_cache_mship1_idx ON grouper_sql_cache_mship (sql_cache_group_internal_id, flattened_add_timestamp)").executeSql();
-            otherJobInput.getHib3GrouperLoaderLog().appendJobMessage(", added index grouper_sql_cache_mship1_idx");
+          // replacing the index in mysql gets tricky because the constraints have to be dropped.  so we'll just create a new one.
+          if (!GrouperDdlUtils.assertIndexExists("grouper_sql_cache_mship", "grouper_sql_cache_mship3_idx")) {
+            new GcDbAccess().sql("CREATE INDEX grouper_sql_cache_mship3_idx ON grouper_sql_cache_mship (sql_cache_group_internal_id, flattened_add_timestamp)").executeSql();
+            otherJobInput.getHib3GrouperLoaderLog().appendJobMessage(", added index grouper_sql_cache_mship3_idx");
+          }
+          
+          if (GrouperDdlUtils.assertIndexExists("grouper_sql_cache_mship", "grouper_sql_cache_mship1_idx")) {                
+            if (GrouperDdlUtils.isMysql()) {
+              new GcDbAccess().sql("DROP INDEX grouper_sql_cache_mship1_idx ON grouper_sql_cache_mship").executeSql();
+            } else {
+              new GcDbAccess().sql("DROP INDEX grouper_sql_cache_mship1_idx").executeSql();
+            }
+            
+            otherJobInput.getHib3GrouperLoaderLog().appendJobMessage(", dropped index grouper_sql_cache_mship1_idx");
           }
           
           if (GrouperDdlUtils.isOracle() || GrouperDdlUtils.isPostgres()) {
