@@ -1,6 +1,5 @@
 package edu.internet2.middleware.grouper.sqlCache;
 
-import java.sql.Timestamp;
 import java.util.List;
 
 import edu.internet2.middleware.grouper.FieldFinder;
@@ -56,7 +55,7 @@ public class SqlCacheMembershipTest extends GrouperTest {
    * @param args
    */
   public static void main(String[] args) {
-    TestRunner.run(new SqlCacheMembershipTest("testCacheMembershipsFlattenedTimestampFix"));
+    TestRunner.run(new SqlCacheMembershipTest("testCacheMemberships"));
   }
 
   public void testSimpleChangeLog() {
@@ -65,13 +64,13 @@ public class SqlCacheMembershipTest extends GrouperTest {
 
     Group testGroup = new GroupSave().assignName("test:testGroup").assignCreateParentStemsIfNotExist(true).save();
     
-    long millisPreAdd = System.currentTimeMillis();
+    long millisPreAdd = System.currentTimeMillis() * 1000L;
     GrouperUtil.sleep(1000);
     
     testGroup.addMember(SubjectTestHelper.SUBJ0);
 
     GrouperUtil.sleep(1000);
-    long millisPostAdd = System.currentTimeMillis();
+    long millisPostAdd = System.currentTimeMillis() * 1000L;
 
 
     GrouperLoader.runOnceByJobName(GrouperSession.staticGrouperSession(), "CHANGE_LOG_changeLogTempToChangeLog");
@@ -89,8 +88,8 @@ public class SqlCacheMembershipTest extends GrouperTest {
     assertEquals(Group.getDefaultList().getName(), groupNameFieldNameSubjectIdSourceIdInDbs.get(0)[1]);
     assertEquals(SubjectTestHelper.SUBJ0.getSourceId(), groupNameFieldNameSubjectIdSourceIdInDbs.get(0)[2]);
     assertEquals(SubjectTestHelper.SUBJ0.getId(), groupNameFieldNameSubjectIdSourceIdInDbs.get(0)[3]);
-    assertTrue(millisPreAdd < ((Timestamp)groupNameFieldNameSubjectIdSourceIdInDbs.get(0)[4]).getTime());
-    assertTrue(millisPostAdd > ((Timestamp)groupNameFieldNameSubjectIdSourceIdInDbs.get(0)[4]).getTime());
+    assertTrue(millisPreAdd < GrouperUtil.longObjectValue(groupNameFieldNameSubjectIdSourceIdInDbs.get(0)[4], false));
+    assertTrue(millisPostAdd > GrouperUtil.longObjectValue(groupNameFieldNameSubjectIdSourceIdInDbs.get(0)[4], false));
   }
   
   public void testCacheMembershipsFlattened() {
@@ -122,7 +121,7 @@ public class SqlCacheMembershipTest extends GrouperTest {
     long originalSize =  new GcDbAccess().sql("select count(*) from grouper_sql_cache_mship").select(Long.class);
 
     sleep(10);
-    long time1 = System.currentTimeMillis();
+    long time1 = System.currentTimeMillis() * 1000L;
     sleep(10);
     
     childGroup1.addMember(SubjectTestHelper.SUBJ1);
@@ -130,7 +129,7 @@ public class SqlCacheMembershipTest extends GrouperTest {
     assertEquals(originalSize + 2, (long)new GcDbAccess().sql("select count(*) from grouper_sql_cache_mship").select(Long.class));
     
     sleep(10);
-    long time2 = System.currentTimeMillis();
+    long time2 = System.currentTimeMillis() * 1000L;
     sleep(10);
     
     testGroup.addMember(SubjectTestHelper.SUBJ1);
@@ -138,7 +137,7 @@ public class SqlCacheMembershipTest extends GrouperTest {
     assertEquals(originalSize + 2, (long)new GcDbAccess().sql("select count(*) from grouper_sql_cache_mship").select(Long.class));
 
     sleep(10);
-    long time3 = System.currentTimeMillis();
+    long time3 = System.currentTimeMillis() * 1000L;
     sleep(10);
     
     testStem.grantPriv(SubjectTestHelper.SUBJ1, NamingPrivilege.STEM_ADMIN, true);
@@ -146,7 +145,7 @@ public class SqlCacheMembershipTest extends GrouperTest {
     assertEquals(originalSize + 3, (long)new GcDbAccess().sql("select count(*) from grouper_sql_cache_mship").select(Long.class));
 
     sleep(10);
-    long time4 = System.currentTimeMillis();
+    long time4 = System.currentTimeMillis() * 1000L;
     sleep(10);
     
     childGroup2.addMember(SubjectTestHelper.SUBJ1);
@@ -154,7 +153,7 @@ public class SqlCacheMembershipTest extends GrouperTest {
     assertEquals(originalSize + 4, (long)new GcDbAccess().sql("select count(*) from grouper_sql_cache_mship").select(Long.class));
     
     sleep(10);
-    long time5 = System.currentTimeMillis();
+    long time5 = System.currentTimeMillis() * 1000L;
     sleep(10);
     
     // clear out the membership table
@@ -167,10 +166,10 @@ public class SqlCacheMembershipTest extends GrouperTest {
 
     String sql = "select gscm.flattened_add_timestamp from grouper_sql_cache_mship gscm, grouper_sql_cache_group gscg, grouper_fields gf where gscm.sql_cache_group_internal_id=gscg.internal_id and gscg.field_internal_id=gf.internal_id and gscg.group_internal_id = ? and gf.name = ? and gscm.member_internal_id = ?";
 
-    long timestampStemToSubj1 = new GcDbAccess().sql(sql).addBindVar(testStem.getIdIndex()).addBindVar("stemAdmins").addBindVar(member1.getInternalId()).select(Timestamp.class).getTime();
-    long timestampChildGroup2ToSubj1 = new GcDbAccess().sql(sql).addBindVar(childGroup2.getInternalId()).addBindVar("members").addBindVar(member1.getInternalId()).select(Timestamp.class).getTime();
-    long timestampTestGroupToSubj1 = new GcDbAccess().sql(sql).addBindVar(testGroup.getInternalId()).addBindVar("members").addBindVar(member1.getInternalId()).select(Timestamp.class).getTime();
-    long timestampChildGroup1ToSubj1 = new GcDbAccess().sql(sql).addBindVar(childGroup1.getInternalId()).addBindVar("members").addBindVar(member1.getInternalId()).select(Timestamp.class).getTime();
+    long timestampStemToSubj1 = new GcDbAccess().sql(sql).addBindVar(testStem.getIdIndex()).addBindVar("stemAdmins").addBindVar(member1.getInternalId()).select(Long.class);
+    long timestampChildGroup2ToSubj1 = new GcDbAccess().sql(sql).addBindVar(childGroup2.getInternalId()).addBindVar("members").addBindVar(member1.getInternalId()).select(Long.class);
+    long timestampTestGroupToSubj1 = new GcDbAccess().sql(sql).addBindVar(testGroup.getInternalId()).addBindVar("members").addBindVar(member1.getInternalId()).select(Long.class);
+    long timestampChildGroup1ToSubj1 = new GcDbAccess().sql(sql).addBindVar(childGroup1.getInternalId()).addBindVar("members").addBindVar(member1.getInternalId()).select(Long.class);
 
     assertTrue(timestampChildGroup1ToSubj1 > time1);
     assertTrue(timestampChildGroup1ToSubj1 < time2);
@@ -198,8 +197,8 @@ public class SqlCacheMembershipTest extends GrouperTest {
     runRullSync(true);
     assertEquals(originalSize + 2, (long)new GcDbAccess().sql("select count(*) from grouper_sql_cache_mship").select(Long.class));
 
-    timestampStemToSubj1 = new GcDbAccess().sql(sql).addBindVar(testStem.getIdIndex()).addBindVar("stemAdmins").addBindVar(member1.getInternalId()).select(Timestamp.class).getTime();
-    timestampTestGroupToSubj1 = new GcDbAccess().sql(sql).addBindVar(testGroup.getInternalId()).addBindVar("members").addBindVar(member1.getInternalId()).select(Timestamp.class).getTime();
+    timestampStemToSubj1 = new GcDbAccess().sql(sql).addBindVar(testStem.getIdIndex()).addBindVar("stemAdmins").addBindVar(member1.getInternalId()).select(Long.class);
+    timestampTestGroupToSubj1 = new GcDbAccess().sql(sql).addBindVar(testGroup.getInternalId()).addBindVar("members").addBindVar(member1.getInternalId()).select(Long.class);
 
     assertTrue(timestampTestGroupToSubj1 > time1);
     assertTrue(timestampTestGroupToSubj1 < time2);
@@ -251,14 +250,14 @@ public class SqlCacheMembershipTest extends GrouperTest {
     GrouperLoader.runOnceByJobName(GrouperSession.staticGrouperSession(), "CHANGE_LOG_changeLogTempToChangeLog");
 
     sleep(1100);
-    long time1 = System.currentTimeMillis();
+    long time1 = System.currentTimeMillis() * 1000L;
     sleep(1100);
     
     childGroup1.addMember(SubjectTestHelper.SUBJ1);
     childGroup3.addMember(SubjectTestHelper.SUBJ2);
 
     sleep(1100);
-    long time2 = System.currentTimeMillis();
+    long time2 = System.currentTimeMillis() * 1000L;
     sleep(1100);
     
     childGroup2.addMember(SubjectTestHelper.SUBJ1);
@@ -275,8 +274,8 @@ public class SqlCacheMembershipTest extends GrouperTest {
 
     String sql = "select gscm.flattened_add_timestamp from grouper_sql_cache_mship gscm, grouper_sql_cache_group gscg, grouper_fields gf where gscm.sql_cache_group_internal_id=gscg.internal_id and gscg.field_internal_id=gf.internal_id and gscg.group_internal_id = ? and gf.name = ? and gscm.member_internal_id = ?";
 
-    long timestampStemToSubj2 = new GcDbAccess().sql(sql).addBindVar(testStem.getIdIndex()).addBindVar("stemAdmins").addBindVar(member2.getInternalId()).select(Timestamp.class).getTime();
-    long timestampTestGroupToSubj1 = new GcDbAccess().sql(sql).addBindVar(testGroup.getInternalId()).addBindVar("members").addBindVar(member1.getInternalId()).select(Timestamp.class).getTime();
+    long timestampStemToSubj2 = new GcDbAccess().sql(sql).addBindVar(testStem.getIdIndex()).addBindVar("stemAdmins").addBindVar(member2.getInternalId()).select(Long.class);
+    long timestampTestGroupToSubj1 = new GcDbAccess().sql(sql).addBindVar(testGroup.getInternalId()).addBindVar("members").addBindVar(member1.getInternalId()).select(Long.class);
 
     assertTrue(timestampStemToSubj2 > time1);
     assertTrue(timestampTestGroupToSubj1 > time1);
@@ -285,10 +284,10 @@ public class SqlCacheMembershipTest extends GrouperTest {
     assertTrue(timestampTestGroupToSubj1 < time2);
     
     // now mess up the time
-    new GcDbAccess().sql("update grouper_sql_cache_mship set flattened_add_timestamp = ?").addBindVar(new Timestamp(time1 - 5000)).executeSql();
+    new GcDbAccess().sql("update grouper_sql_cache_mship set flattened_add_timestamp = ?").addBindVar(time1 - 5000000).executeSql();
     
-    timestampStemToSubj2 = new GcDbAccess().sql(sql).addBindVar(testStem.getIdIndex()).addBindVar("stemAdmins").addBindVar(member2.getInternalId()).select(Timestamp.class).getTime();
-    timestampTestGroupToSubj1 = new GcDbAccess().sql(sql).addBindVar(testGroup.getInternalId()).addBindVar("members").addBindVar(member1.getInternalId()).select(Timestamp.class).getTime();
+    timestampStemToSubj2 = new GcDbAccess().sql(sql).addBindVar(testStem.getIdIndex()).addBindVar("stemAdmins").addBindVar(member2.getInternalId()).select(Long.class);
+    timestampTestGroupToSubj1 = new GcDbAccess().sql(sql).addBindVar(testGroup.getInternalId()).addBindVar("members").addBindVar(member1.getInternalId()).select(Long.class);
 
     assertFalse(timestampStemToSubj2 > time1);
     assertFalse(timestampTestGroupToSubj1 > time1);
@@ -301,8 +300,8 @@ public class SqlCacheMembershipTest extends GrouperTest {
     
     assertEquals(originalSize + 4, (long)new GcDbAccess().sql("select count(*) from grouper_sql_cache_mship").select(Long.class));
 
-    timestampStemToSubj2 = new GcDbAccess().sql(sql).addBindVar(testStem.getIdIndex()).addBindVar("stemAdmins").addBindVar(member2.getInternalId()).select(Timestamp.class).getTime();
-    timestampTestGroupToSubj1 = new GcDbAccess().sql(sql).addBindVar(testGroup.getInternalId()).addBindVar("members").addBindVar(member1.getInternalId()).select(Timestamp.class).getTime();
+    timestampStemToSubj2 = new GcDbAccess().sql(sql).addBindVar(testStem.getIdIndex()).addBindVar("stemAdmins").addBindVar(member2.getInternalId()).select(Long.class);
+    timestampTestGroupToSubj1 = new GcDbAccess().sql(sql).addBindVar(testGroup.getInternalId()).addBindVar("members").addBindVar(member1.getInternalId()).select(Long.class);
 
     assertTrue(timestampStemToSubj2 > time1);
     assertTrue(timestampTestGroupToSubj1 > time1);
@@ -313,15 +312,15 @@ public class SqlCacheMembershipTest extends GrouperTest {
     // mess it up one more time
     new GcDbAccess().sql("update grouper_sql_cache_mship set member_internal_id = ? where member_internal_id = ?").addBindVar(member1.getInternalId()).addBindVar(member2.getInternalId()).executeSql();
     
-    assertNull(new GcDbAccess().sql(sql).addBindVar(testStem.getIdIndex()).addBindVar("stemAdmins").addBindVar(member2.getInternalId()).select(Timestamp.class));
+    assertNull(new GcDbAccess().sql(sql).addBindVar(testStem.getIdIndex()).addBindVar("stemAdmins").addBindVar(member2.getInternalId()).select(Long.class));
 
     // and have it fixed
     runRullSync(true);
     
     assertEquals(originalSize + 4, (long)new GcDbAccess().sql("select count(*) from grouper_sql_cache_mship").select(Long.class));
 
-    timestampStemToSubj2 = new GcDbAccess().sql(sql).addBindVar(testStem.getIdIndex()).addBindVar("stemAdmins").addBindVar(member2.getInternalId()).select(Timestamp.class).getTime();
-    timestampTestGroupToSubj1 = new GcDbAccess().sql(sql).addBindVar(testGroup.getInternalId()).addBindVar("members").addBindVar(member1.getInternalId()).select(Timestamp.class).getTime();
+    timestampStemToSubj2 = new GcDbAccess().sql(sql).addBindVar(testStem.getIdIndex()).addBindVar("stemAdmins").addBindVar(member2.getInternalId()).select(Long.class);
+    timestampTestGroupToSubj1 = new GcDbAccess().sql(sql).addBindVar(testGroup.getInternalId()).addBindVar("members").addBindVar(member1.getInternalId()).select(Long.class);
 
     assertTrue(timestampStemToSubj2 > time1);
     assertTrue(timestampTestGroupToSubj1 > time1);
@@ -414,7 +413,7 @@ public class SqlCacheMembershipTest extends GrouperTest {
     GrouperLoader.runOnceByJobName(GrouperSession.staticGrouperSession(), "CHANGE_LOG_changeLogTempToChangeLog");
     assertEquals(originalSize + 13, (long)new GcDbAccess().sql("select count(*) from grouper_sql_cache_mship").select(Long.class));
 
-    verifyMemberships(testGroup, testGroup2, testEntity, testEntity2, testStem, testAttrDef, testAttrDef2, true);
+    verifyMemberships(testGroup, testGroup2, testEntity, testEntity2, testStem, testAttrDef, testAttrDef2);
     
     // should be no changes
     runRullSync(false);
@@ -429,7 +428,7 @@ public class SqlCacheMembershipTest extends GrouperTest {
     runRullSync(true);
     assertEquals(originalSize + 13, (long)new GcDbAccess().sql("select count(*) from grouper_sql_cache_mship").select(Long.class));
 
-    verifyMemberships(testGroup, testGroup2, testEntity, testEntity2, testStem, testAttrDef, testAttrDef2, true);
+    verifyMemberships(testGroup, testGroup2, testEntity, testEntity2, testStem, testAttrDef, testAttrDef2);
     
     // should be no changes
     runRullSync(false);
@@ -449,7 +448,7 @@ public class SqlCacheMembershipTest extends GrouperTest {
     GrouperLoader.runOnceByJobName(GrouperSession.staticGrouperSession(), "CHANGE_LOG_changeLogTempToChangeLog");
     assertEquals(originalSize + 13, (long)new GcDbAccess().sql("select count(*) from grouper_sql_cache_mship").select(Long.class));
 
-    verifyMemberships(testGroup, testGroup2, testEntity, testEntity2, testStem, testAttrDef, testAttrDef2, true);
+    verifyMemberships(testGroup, testGroup2, testEntity, testEntity2, testStem, testAttrDef, testAttrDef2);
 
     // should be no changes
     runRullSync(false);
@@ -465,7 +464,7 @@ public class SqlCacheMembershipTest extends GrouperTest {
     
     assertEquals(originalSize + 13, (long)new GcDbAccess().sql("select count(*) from grouper_sql_cache_mship").select(Long.class));
 
-    verifyMemberships(testGroup, testGroup2, testEntity, testEntity2, testStem, testAttrDef, testAttrDef2, true);
+    verifyMemberships(testGroup, testGroup2, testEntity, testEntity2, testStem, testAttrDef, testAttrDef2);
     
     // should be no changes
     runRullSync(false);
@@ -493,7 +492,7 @@ public class SqlCacheMembershipTest extends GrouperTest {
     runRullSync(false);
   }
   
-  public void verifyMemberships(Group testGroup, Group testGroup2, Group testEntity, Group testEntity2, Stem testStem, AttributeDef testAttrDef, AttributeDef testAttrDef2, boolean checkTimestamp) {
+  public void verifyMemberships(Group testGroup, Group testGroup2, Group testEntity, Group testEntity2, Stem testStem, AttributeDef testAttrDef, AttributeDef testAttrDef2) {
 
     Member member3 = MemberFinder.findBySubject(GrouperSession.staticGrouperSession(), SubjectTestHelper.SUBJ3, false);
     Member member4 = MemberFinder.findBySubject(GrouperSession.staticGrouperSession(), SubjectTestHelper.SUBJ4, false);
@@ -501,122 +500,70 @@ public class SqlCacheMembershipTest extends GrouperTest {
 
     String sql = "select gscm.flattened_add_timestamp from grouper_sql_cache_mship gscm, grouper_sql_cache_group gscg, grouper_fields gf where gscm.sql_cache_group_internal_id=gscg.internal_id and gscg.field_internal_id=gf.internal_id and gscg.group_internal_id = ? and gf.name = ? and gscm.member_internal_id = ?";
     
-    Timestamp timestamp = new GcDbAccess().sql(sql).addBindVar(testGroup.getInternalId()).addBindVar("members").addBindVar(member3.getInternalId()).select(Timestamp.class);
+    Long timestamp = new GcDbAccess().sql(sql).addBindVar(testGroup.getInternalId()).addBindVar("members").addBindVar(member3.getInternalId()).select(Long.class);
     Membership membership = MembershipFinder.findImmediateMembership(GrouperSession.staticGrouperSession(), testGroup, SubjectTestHelper.SUBJ3, FieldFinder.find("members", true), true);
     PITMembership pitMembership = GrouperDAOFactory.getFactory().getPITMembership().findBySourceIdActive(membership.getImmediateMembershipId(), true);
-    if (checkTimestamp) {
-      assertEquals(pitMembership.getStartTime().getTime(), timestamp.getTime());
-    } else {
-      assertNotNull(timestamp);
-    }
+    assertEquals(pitMembership.getStartTimeDb(), timestamp);
   
-    timestamp = new GcDbAccess().sql(sql).addBindVar(testGroup.getInternalId()).addBindVar("members").addBindVar(member4.getInternalId()).select(Timestamp.class);
+    timestamp = new GcDbAccess().sql(sql).addBindVar(testGroup.getInternalId()).addBindVar("members").addBindVar(member4.getInternalId()).select(Long.class);
     membership = MembershipFinder.findImmediateMembership(GrouperSession.staticGrouperSession(), testGroup, SubjectTestHelper.SUBJ4, FieldFinder.find("members", true), true);
     pitMembership = GrouperDAOFactory.getFactory().getPITMembership().findBySourceIdActive(membership.getImmediateMembershipId(), true);
-    if (checkTimestamp) {
-      assertEquals(pitMembership.getStartTime().getTime(), timestamp.getTime());
-    } else {
-      assertNotNull(timestamp);
-    }
+    assertEquals(pitMembership.getStartTimeDb(), timestamp);
     
-    timestamp = new GcDbAccess().sql(sql).addBindVar(testGroup2.getInternalId()).addBindVar("members").addBindVar(member3.getInternalId()).select(Timestamp.class);
+    timestamp = new GcDbAccess().sql(sql).addBindVar(testGroup2.getInternalId()).addBindVar("members").addBindVar(member3.getInternalId()).select(Long.class);
     membership = MembershipFinder.findImmediateMembership(GrouperSession.staticGrouperSession(), testGroup2, SubjectTestHelper.SUBJ3, FieldFinder.find("members", true), true);
     pitMembership = GrouperDAOFactory.getFactory().getPITMembership().findBySourceIdActive(membership.getImmediateMembershipId(), true);
-    if (checkTimestamp) {
-      assertEquals(pitMembership.getStartTime().getTime(), timestamp.getTime());
-    } else {
-      assertNotNull(timestamp);
-    }
+    assertEquals(pitMembership.getStartTimeDb(), timestamp);
 
-    timestamp = new GcDbAccess().sql(sql).addBindVar(testGroup.getInternalId()).addBindVar("admins").addBindVar(member3.getInternalId()).select(Timestamp.class);
+    timestamp = new GcDbAccess().sql(sql).addBindVar(testGroup.getInternalId()).addBindVar("admins").addBindVar(member3.getInternalId()).select(Long.class);
     membership = MembershipFinder.findImmediateMembership(GrouperSession.staticGrouperSession(), testGroup, SubjectTestHelper.SUBJ3, FieldFinder.find("admins", true), true);
     pitMembership = GrouperDAOFactory.getFactory().getPITMembership().findBySourceIdActive(membership.getImmediateMembershipId(), true);
-    if (checkTimestamp) {
-      assertEquals(pitMembership.getStartTime().getTime(), timestamp.getTime());
-    } else {
-      assertNotNull(timestamp);
-    }
+    assertEquals(pitMembership.getStartTimeDb(), timestamp);
 
-    timestamp = new GcDbAccess().sql(sql).addBindVar(testGroup.getInternalId()).addBindVar("viewers").addBindVar(member3.getInternalId()).select(Timestamp.class);
+    timestamp = new GcDbAccess().sql(sql).addBindVar(testGroup.getInternalId()).addBindVar("viewers").addBindVar(member3.getInternalId()).select(Long.class);
     membership = MembershipFinder.findImmediateMembership(GrouperSession.staticGrouperSession(), testGroup, SubjectTestHelper.SUBJ3, FieldFinder.find("viewers", true), true);
     pitMembership = GrouperDAOFactory.getFactory().getPITMembership().findBySourceIdActive(membership.getImmediateMembershipId(), true);
-    if (checkTimestamp) {
-      assertEquals(pitMembership.getStartTime().getTime(), timestamp.getTime());
-    } else {
-      assertNotNull(timestamp);
-    }
+    assertEquals(pitMembership.getStartTimeDb(), timestamp);
 
-    timestamp = new GcDbAccess().sql(sql).addBindVar(testEntity.getInternalId()).addBindVar("admins").addBindVar(member3.getInternalId()).select(Timestamp.class);
+    timestamp = new GcDbAccess().sql(sql).addBindVar(testEntity.getInternalId()).addBindVar("admins").addBindVar(member3.getInternalId()).select(Long.class);
     membership = MembershipFinder.findImmediateMembership(GrouperSession.staticGrouperSession(), testEntity, SubjectTestHelper.SUBJ3, FieldFinder.find("admins", true), true);
     pitMembership = GrouperDAOFactory.getFactory().getPITMembership().findBySourceIdActive(membership.getImmediateMembershipId(), true);
-    if (checkTimestamp) {
-      assertEquals(pitMembership.getStartTime().getTime(), timestamp.getTime());
-    } else {
-      assertNotNull(timestamp);
-    }
+    assertEquals(pitMembership.getStartTimeDb(), timestamp);
 
-    timestamp = new GcDbAccess().sql(sql).addBindVar(testEntity.getInternalId()).addBindVar("viewers").addBindVar(member3.getInternalId()).select(Timestamp.class);
+    timestamp = new GcDbAccess().sql(sql).addBindVar(testEntity.getInternalId()).addBindVar("viewers").addBindVar(member3.getInternalId()).select(Long.class);
     membership = MembershipFinder.findImmediateMembership(GrouperSession.staticGrouperSession(), testEntity, SubjectTestHelper.SUBJ3, FieldFinder.find("viewers", true), true);
     pitMembership = GrouperDAOFactory.getFactory().getPITMembership().findBySourceIdActive(membership.getImmediateMembershipId(), true);
-    if (checkTimestamp) {
-      assertEquals(pitMembership.getStartTime().getTime(), timestamp.getTime());
-    } else {
-      assertNotNull(timestamp);
-    }
+    assertEquals(pitMembership.getStartTimeDb(), timestamp);
 
-    timestamp = new GcDbAccess().sql(sql).addBindVar(testEntity.getInternalId()).addBindVar("groupAttrReaders").addBindVar(member4.getInternalId()).select(Timestamp.class);
+    timestamp = new GcDbAccess().sql(sql).addBindVar(testEntity.getInternalId()).addBindVar("groupAttrReaders").addBindVar(member4.getInternalId()).select(Long.class);
     membership = MembershipFinder.findImmediateMembership(GrouperSession.staticGrouperSession(), testEntity, SubjectTestHelper.SUBJ4, FieldFinder.find("groupAttrReaders", true), true);
     pitMembership = GrouperDAOFactory.getFactory().getPITMembership().findBySourceIdActive(membership.getImmediateMembershipId(), true);
-    if (checkTimestamp) {
-      assertEquals(pitMembership.getStartTime().getTime(), timestamp.getTime());
-    } else {
-      assertNotNull(timestamp);
-    }
+    assertEquals(pitMembership.getStartTimeDb(), timestamp);
 
-    timestamp = new GcDbAccess().sql(sql).addBindVar(testEntity.getInternalId()).addBindVar("groupAttrUpdaters").addBindVar(member5.getInternalId()).select(Timestamp.class);
+    timestamp = new GcDbAccess().sql(sql).addBindVar(testEntity.getInternalId()).addBindVar("groupAttrUpdaters").addBindVar(member5.getInternalId()).select(Long.class);
     membership = MembershipFinder.findImmediateMembership(GrouperSession.staticGrouperSession(), testEntity, SubjectTestHelper.SUBJ5, FieldFinder.find("groupAttrUpdaters", true), true);
     pitMembership = GrouperDAOFactory.getFactory().getPITMembership().findBySourceIdActive(membership.getImmediateMembershipId(), true);
-    if (checkTimestamp) {
-      assertEquals(pitMembership.getStartTime().getTime(), timestamp.getTime());
-    } else {
-      assertNotNull(timestamp);
-    }
+    assertEquals(pitMembership.getStartTimeDb(), timestamp);
 
-    timestamp = new GcDbAccess().sql(sql).addBindVar(testStem.getIdIndex()).addBindVar("stemAdmins").addBindVar(member3.getInternalId()).select(Timestamp.class);
+    timestamp = new GcDbAccess().sql(sql).addBindVar(testStem.getIdIndex()).addBindVar("stemAdmins").addBindVar(member3.getInternalId()).select(Long.class);
     membership = MembershipFinder.findImmediateMembership(GrouperSession.staticGrouperSession(), testStem, SubjectTestHelper.SUBJ3, FieldFinder.find("stemAdmins", true), true);
     pitMembership = GrouperDAOFactory.getFactory().getPITMembership().findBySourceIdActive(membership.getImmediateMembershipId(), true);
-    if (checkTimestamp) {
-      assertEquals(pitMembership.getStartTime().getTime(), timestamp.getTime());
-    } else {
-      assertNotNull(timestamp);
-    }
+    assertEquals(pitMembership.getStartTimeDb(), timestamp);
 
-    timestamp = new GcDbAccess().sql(sql).addBindVar(testStem.getIdIndex()).addBindVar("stemAttrUpdaters").addBindVar(member3.getInternalId()).select(Timestamp.class);
+    timestamp = new GcDbAccess().sql(sql).addBindVar(testStem.getIdIndex()).addBindVar("stemAttrUpdaters").addBindVar(member3.getInternalId()).select(Long.class);
     membership = MembershipFinder.findImmediateMembership(GrouperSession.staticGrouperSession(), testStem, SubjectTestHelper.SUBJ3, FieldFinder.find("stemAttrUpdaters", true), true);
     pitMembership = GrouperDAOFactory.getFactory().getPITMembership().findBySourceIdActive(membership.getImmediateMembershipId(), true);
-    if (checkTimestamp) {
-      assertEquals(pitMembership.getStartTime().getTime(), timestamp.getTime());
-    } else {
-      assertNotNull(timestamp);
-    }
+    assertEquals(pitMembership.getStartTimeDb(), timestamp);
 
-    timestamp = new GcDbAccess().sql(sql).addBindVar(testAttrDef.getIdIndex()).addBindVar("attrAdmins").addBindVar(member4.getInternalId()).select(Timestamp.class);
+    timestamp = new GcDbAccess().sql(sql).addBindVar(testAttrDef.getIdIndex()).addBindVar("attrAdmins").addBindVar(member4.getInternalId()).select(Long.class);
     membership = MembershipFinder.findImmediateMembership(GrouperSession.staticGrouperSession(), testAttrDef, SubjectTestHelper.SUBJ4, FieldFinder.find("attrAdmins", true), true);
     pitMembership = GrouperDAOFactory.getFactory().getPITMembership().findBySourceIdActive(membership.getImmediateMembershipId(), true);
-    if (checkTimestamp) {
-      assertEquals(pitMembership.getStartTime().getTime(), timestamp.getTime());
-    } else {
-      assertNotNull(timestamp);
-    }
+    assertEquals(pitMembership.getStartTimeDb(), timestamp);
 
-    timestamp = new GcDbAccess().sql(sql).addBindVar(testAttrDef2.getIdIndex()).addBindVar("attrReaders").addBindVar(member5.getInternalId()).select(Timestamp.class);
+    timestamp = new GcDbAccess().sql(sql).addBindVar(testAttrDef2.getIdIndex()).addBindVar("attrReaders").addBindVar(member5.getInternalId()).select(Long.class);
     membership = MembershipFinder.findImmediateMembership(GrouperSession.staticGrouperSession(), testAttrDef2, SubjectTestHelper.SUBJ5, FieldFinder.find("attrReaders", true), true);
     pitMembership = GrouperDAOFactory.getFactory().getPITMembership().findBySourceIdActive(membership.getImmediateMembershipId(), true);
-    if (checkTimestamp) {
-      assertEquals(pitMembership.getStartTime().getTime(), timestamp.getTime());
-    } else {
-      assertNotNull(timestamp);
-    }
+    assertEquals(pitMembership.getStartTimeDb(), timestamp);
   }
   
   private void sleep(int milliseconds) {

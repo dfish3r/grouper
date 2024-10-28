@@ -2298,7 +2298,7 @@ CREATE INDEX grouper_sql_cache_group2_idx ON grouper_sql_cache_group (last_membe
 
 CREATE TABLE grouper_sql_cache_mship
 (
-    flattened_add_timestamp DATE NOT NULL,
+    flattened_add_timestamp NUMBER(38) NOT NULL,
     member_internal_id NUMBER(38) NOT NULL,
     sql_cache_group_internal_id NUMBER(38) NOT NULL,
     PRIMARY KEY (member_internal_id, sql_cache_group_internal_id)

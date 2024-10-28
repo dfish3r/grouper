@@ -1,7 +1,5 @@
 package edu.internet2.middleware.grouper.sqlCache;
 
-import java.sql.Timestamp;
-
 import edu.internet2.middleware.grouper.dictionary.GrouperDictionary;
 import edu.internet2.middleware.grouperClient.jdbc.GcDbVersionable;
 import edu.internet2.middleware.grouperClient.jdbc.GcPersist;
@@ -96,23 +94,23 @@ public class SqlCacheMembership implements GcDbVersionable {
   }
 
   /**
-   * when this member was last added to this group after they werent a member before
+   * when this member was last added to this group in microseconds after they werent a member before
    */
-  private Timestamp flattenedAddTimestamp;
+  private Long flattenedAddTimestamp;
   
   /**
-   * when this member was last added to this group after they werent a member before
+   * when this member was last added to this group in microseconds after they werent a member before
    * @return
    */
-  public Timestamp getFlattenedAddTimestamp() {
+  public Long getFlattenedAddTimestamp() {
     return flattenedAddTimestamp;
   }
 
   /**
-   * when this member was last added to this group after they werent a member before
+   * when this member was last added to this group in microseconds after they werent a member before
    * @param flattenedAddTimestamp
    */
-  public void setFlattenedAddTimestamp(Timestamp flattenedAddTimestamp) {
+  public void setFlattenedAddTimestamp(Long flattenedAddTimestamp) {
     this.flattenedAddTimestamp = flattenedAddTimestamp;
   }
 

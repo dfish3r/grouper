@@ -2,9 +2,6 @@ package edu.internet2.middleware.grouper.sqlCache;
 
 import java.sql.Date;
 import java.sql.Timestamp;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -542,18 +539,18 @@ public class SqlCacheFullSyncDaemon extends OtherJobBase {
     
     List<Object[]> cacheMemberships = gcDbAccess.sql(sqlQueryCacheMemberships.toString()).selectList(Object[].class);
     Map<Long, Set<Long>> cacheMembershipsSqlCacheGroupInternalIdToMembers = new HashMap<>();
-    Map<MultiKey, Long> cacheMembershipsFlattenedAddTimeMillis = new HashMap<>();
+    Map<MultiKey, Long> cacheMembershipsFlattenedAddTimeMicros = new HashMap<>();
     for (Object[] cacheMembership : cacheMemberships) {
       long sqlCacheGroupInternalId = GrouperUtil.longObjectValue(cacheMembership[0], false);
       long memberInternalId = GrouperUtil.longObjectValue(cacheMembership[1], false);
-      Timestamp flattenedAddTimestamp = GrouperUtil.timestampObjectValue(cacheMembership[2], false);
+      long flattenedAddTimestamp = GrouperUtil.longObjectValue(cacheMembership[2], false);
 
       if (cacheMembershipsSqlCacheGroupInternalIdToMembers.get(sqlCacheGroupInternalId) == null) {
         cacheMembershipsSqlCacheGroupInternalIdToMembers.put(sqlCacheGroupInternalId, new HashSet<>());
       }
       cacheMembershipsSqlCacheGroupInternalIdToMembers.get(sqlCacheGroupInternalId).add(memberInternalId);
       
-      cacheMembershipsFlattenedAddTimeMillis.put(new MultiKey(sqlCacheGroupInternalId, memberInternalId), flattenedAddTimestamp.getTime());
+      cacheMembershipsFlattenedAddTimeMicros.put(new MultiKey(sqlCacheGroupInternalId, memberInternalId), flattenedAddTimestamp);
     }
     
     // query pit memberships
@@ -717,8 +714,7 @@ public class SqlCacheFullSyncDaemon extends OtherJobBase {
       for (Long cacheMembershipsMemberInternalIdToAdd : cacheMembershipsMemberInternalIdsToAdd) {
         SqlCacheMembership sqlCacheMembershipToInsert = new SqlCacheMembership();
         long membershipAddedLong = pitMembershipsFlattenedAddTimeMicros.get(new MultiKey(ownerInternalIdAndFieldInternalIdMultiKey.getKey(0), ownerInternalIdAndFieldInternalIdMultiKey.getKey(1), cacheMembershipsMemberInternalIdToAdd));
-        Timestamp membershipAdded = new Timestamp(membershipAddedLong / 1000);
-        sqlCacheMembershipToInsert.setFlattenedAddTimestamp(membershipAdded);
+        sqlCacheMembershipToInsert.setFlattenedAddTimestamp(membershipAddedLong);
         sqlCacheMembershipToInsert.setMemberInternalId(cacheMembershipsMemberInternalIdToAdd);
         sqlCacheMembershipToInsert.setSqlCacheGroupInternalId(sqlCacheGroupInternalId);
         sqlCacheMembershipsToInsert.add(sqlCacheMembershipToInsert);
@@ -730,16 +726,10 @@ public class SqlCacheFullSyncDaemon extends OtherJobBase {
       
       for (Long cacheMembershipsMemberInternalIdUnchanged : cacheMembershipsMemberInternalIdsUnchanged) {
         long pitMembershipAddedLongMicros = pitMembershipsFlattenedAddTimeMicros.get(new MultiKey(ownerInternalIdAndFieldInternalIdMultiKey.getKey(0), ownerInternalIdAndFieldInternalIdMultiKey.getKey(1), cacheMembershipsMemberInternalIdUnchanged));
-        long cacheMembershipAddedLongMillis = cacheMembershipsFlattenedAddTimeMillis.get(new MultiKey(sqlCacheGroupInternalId, cacheMembershipsMemberInternalIdUnchanged));
+        long cacheMembershipAddedLongMicros = cacheMembershipsFlattenedAddTimeMicros.get(new MultiKey(sqlCacheGroupInternalId, cacheMembershipsMemberInternalIdUnchanged));
 
-        if (Math.abs((pitMembershipAddedLongMicros / 1000) - cacheMembershipAddedLongMillis) > 1000) {
-          // check for possible issue with db not storing timezone and we're in a daylight savings pre and post fall back
-          ZonedDateTime pitZonedDateTime = ZonedDateTime.ofInstant(Instant.ofEpochMilli(pitMembershipAddedLongMicros / 1000), ZoneId.systemDefault());
-          ZonedDateTime cacheZonedDateTime = ZonedDateTime.ofInstant(Instant.ofEpochMilli(cacheMembershipAddedLongMillis), ZoneId.systemDefault());
-          
-          if (Math.abs(pitZonedDateTime.toLocalDateTime().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli() - cacheZonedDateTime.toLocalDateTime().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()) > 1000) {
-            bindVarsSqlCacheMshipUpdates.add(GrouperUtil.toListObject(new Timestamp(pitMembershipAddedLongMicros / 1000), cacheMembershipsMemberInternalIdUnchanged, sqlCacheGroupInternalId));
-          }
+        if (pitMembershipAddedLongMicros != cacheMembershipAddedLongMicros) {
+          bindVarsSqlCacheMshipUpdates.add(GrouperUtil.toListObject(pitMembershipAddedLongMicros, cacheMembershipsMemberInternalIdUnchanged, sqlCacheGroupInternalId));
         }
       }
       
