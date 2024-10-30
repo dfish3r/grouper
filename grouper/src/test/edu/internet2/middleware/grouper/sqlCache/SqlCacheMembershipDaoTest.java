@@ -60,7 +60,7 @@ public class SqlCacheMembershipDaoTest extends GrouperTest {
     SqlCacheMembership sqlCacheMembership = new SqlCacheMembership();
     sqlCacheMembership.setSqlCacheGroupInternalId(sqlCacheGroup.getInternalId());
     sqlCacheMembership.setMemberInternalId(member.getInternalId());
-    sqlCacheMembership.setFlattenedAddTimestamp(new Timestamp(System.currentTimeMillis()));
+    sqlCacheMembership.setFlattenedAddTimestamp(System.currentTimeMillis() * 1000L);
     SqlCacheMembershipDao.store(sqlCacheMembership);
     
     sqlCacheMembership = SqlCacheMembershipDao.retrieveByCacheGroupInternalIdAndMemberInternalId(sqlCacheMembership.getSqlCacheGroupInternalId(), sqlCacheMembership.getMemberInternalId());
@@ -190,14 +190,14 @@ public class SqlCacheMembershipDaoTest extends GrouperTest {
     
     assertEquals(0, GrouperUtil.length(groupNameFieldNameSubjectIdSourceIdInDbs));
     
-    List<MultiKey> groupNameFieldNameSubjectIdSourceIdStartedMillisToInsert = GrouperUtil.toList(
-        new MultiKey(group1.getName(), members.getName(), subject1.getSourceId(), subject1.getId(), currentTimeMillis - 1000),
-        new MultiKey(group2.getName(), admins.getName(), subject2.getSourceId(), subject2.getId(), currentTimeMillis - 2000),
-        new MultiKey(group3.getName(), members.getName(), subject3.getSourceId(), subject3.getId(), currentTimeMillis - 3000),
-        new MultiKey(group4.getName(), members.getName(), subject3.getSourceId(), subject4.getId(), currentTimeMillis - 4000),
-        new MultiKey(group5.getName(), members.getName(), subject4.getSourceId(), subject5.getId(), currentTimeMillis - 5000));
+    List<MultiKey> groupNameFieldNameSubjectIdSourceIdStartedMicrosToInsert = GrouperUtil.toList(
+        new MultiKey(group1.getName(), members.getName(), subject1.getSourceId(), subject1.getId(), (currentTimeMillis - 1000) * 1000L),
+        new MultiKey(group2.getName(), admins.getName(), subject2.getSourceId(), subject2.getId(), (currentTimeMillis - 2000) * 1000L),
+        new MultiKey(group3.getName(), members.getName(), subject3.getSourceId(), subject3.getId(), (currentTimeMillis - 3000) * 1000L),
+        new MultiKey(group4.getName(), members.getName(), subject3.getSourceId(), subject4.getId(), (currentTimeMillis - 4000) * 1000L),
+        new MultiKey(group5.getName(), members.getName(), subject4.getSourceId(), subject5.getId(), (currentTimeMillis - 5000) * 1000L));
     
-    int inserts = SqlCacheMembershipDao.insertSqlCacheMembershipsIfCacheable(groupNameFieldNameSubjectIdSourceIdStartedMillisToInsert, null);
+    int inserts = SqlCacheMembershipDao.insertSqlCacheMembershipsIfCacheable(groupNameFieldNameSubjectIdSourceIdStartedMicrosToInsert, null);
 
     assertEquals(2, inserts);
 
@@ -209,13 +209,13 @@ public class SqlCacheMembershipDaoTest extends GrouperTest {
     assertEquals(members.getName(), groupNameFieldNameSubjectIdSourceIdInDbs.get(0)[1]);
     assertEquals(subject1.getSourceId(), groupNameFieldNameSubjectIdSourceIdInDbs.get(0)[2]);
     assertEquals(subject1.getId(), groupNameFieldNameSubjectIdSourceIdInDbs.get(0)[3]);
-    assertEquals(currentTimeMillis - 1000, ((Timestamp)groupNameFieldNameSubjectIdSourceIdInDbs.get(0)[4]).getTime());
+    assertEquals((currentTimeMillis - 1000) * 1000L, GrouperUtil.longObjectValue(groupNameFieldNameSubjectIdSourceIdInDbs.get(0)[4], false).longValue());
     
     assertEquals(group2.getName(), groupNameFieldNameSubjectIdSourceIdInDbs.get(1)[0]);
     assertEquals(admins.getName(), groupNameFieldNameSubjectIdSourceIdInDbs.get(1)[1]);
     assertEquals(subject2.getSourceId(), groupNameFieldNameSubjectIdSourceIdInDbs.get(1)[2]);
     assertEquals(subject2.getId(), groupNameFieldNameSubjectIdSourceIdInDbs.get(1)[3]);
-    assertEquals(currentTimeMillis - 2000, ((Timestamp)groupNameFieldNameSubjectIdSourceIdInDbs.get(1)[4]).getTime());
+    assertEquals((currentTimeMillis - 2000) * 1000L, GrouperUtil.longObjectValue(groupNameFieldNameSubjectIdSourceIdInDbs.get(1)[4], false).longValue());
 
     List<MultiKey> groupNameFieldNameSubjectIdSourceIdStartedMillisToDelete = GrouperUtil.toList(
         new MultiKey(group1.getName(), members.getName(), subject1.getSourceId(), subject1.getId()),

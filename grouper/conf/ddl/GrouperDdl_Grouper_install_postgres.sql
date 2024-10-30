@@ -2286,11 +2286,11 @@ CREATE INDEX grouper_sql_cache_group2_idx ON grouper_sql_cache_group (last_membe
 CREATE TABLE grouper_sql_cache_mship (
   sql_cache_group_internal_id bigint NOT NULL,
   member_internal_id bigint not NULL,
-  flattened_add_timestamp timestamp not null,
+  flattened_add_timestamp bigint not null,
   PRIMARY KEY (member_internal_id, sql_cache_group_internal_id)
 );
 
-CREATE INDEX grouper_sql_cache_mship1_idx ON grouper_sql_cache_mship (sql_cache_group_internal_id, flattened_add_timestamp);
+CREATE INDEX grouper_sql_cache_mship3_idx ON grouper_sql_cache_mship (sql_cache_group_internal_id, flattened_add_timestamp);
 
 CREATE TABLE grouper_sql_cache_mship_hst (
   internal_id bigint NOT NULL,

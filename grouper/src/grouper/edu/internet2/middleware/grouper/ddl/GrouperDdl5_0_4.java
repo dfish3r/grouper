@@ -414,7 +414,7 @@ public class GrouperDdl5_0_4 {
     Table grouperSqlCacheMembershipTable = GrouperDdlUtils.ddlutilsFindOrCreateTable(database, tableName);
 
     GrouperDdlUtils.ddlutilsFindOrCreateColumn(grouperSqlCacheMembershipTable, SqlCacheMembership.COLUMN_FLATTENED_ADD_TIMESTAMP,
-        Types.TIMESTAMP, null, false, true);
+        Types.BIGINT, null, false, true);
 
     GrouperDdlUtils.ddlutilsFindOrCreateColumn(grouperSqlCacheMembershipTable, SqlCacheMembership.COLUMN_MEMBER_INTERNAL_ID,
         Types.BIGINT, "20", true, true);
