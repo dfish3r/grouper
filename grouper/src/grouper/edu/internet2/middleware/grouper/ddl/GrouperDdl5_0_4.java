@@ -435,16 +435,10 @@ public class GrouperDdl5_0_4 {
       return;
     }
 
-    //CREATE INDEX grouper_sql_cache_mship1_idx ON grouper_sql_cache_mship (sql_cache_group_internal_id, flattened_add_timestamp);
+    //CREATE INDEX grouper_sql_cache_mship3_idx ON grouper_sql_cache_mship (sql_cache_group_internal_id, flattened_add_timestamp);
     GrouperDdlUtils.ddlutilsFindOrCreateIndex(database, SqlCacheMembership.TABLE_GROUPER_SQL_CACHE_MEMBERSHIP, 
-        "grouper_sql_cache_mship1_idx", false, 
-        SqlCacheMembership.COLUMN_SQL_CACHE_GROUP_INTERNAL_ID, SqlCacheMembership.COLUMN_FLATTENED_ADD_TIMESTAMP);
-
-    //CREATE INDEX grouper_sql_cache_mship2_idx ON grouper_sql_cache_mship (member_internal_id, sql_cache_group_internal_id);
-    GrouperDdlUtils.ddlutilsFindOrCreateIndex(database, SqlCacheMembership.TABLE_GROUPER_SQL_CACHE_MEMBERSHIP, 
-        "grouper_sql_cache_mship2_idx", false, 
-        SqlCacheMembership.COLUMN_MEMBER_INTERNAL_ID, SqlCacheMembership.COLUMN_SQL_CACHE_GROUP_INTERNAL_ID);
-    
+        "grouper_sql_cache_mship3_idx", false, 
+        SqlCacheMembership.COLUMN_SQL_CACHE_GROUP_INTERNAL_ID, SqlCacheMembership.COLUMN_FLATTENED_ADD_TIMESTAMP);    
   }
 
   static void addGrouperSqlCacheMshipTableForeignKeys(Database database, DdlVersionBean ddlVersionBean) {
