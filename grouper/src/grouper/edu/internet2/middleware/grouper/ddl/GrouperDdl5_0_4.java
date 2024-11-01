@@ -502,14 +502,11 @@ public class GrouperDdl5_0_4 {
     
     Table grouperSqlCacheMshipHstTable = GrouperDdlUtils.ddlutilsFindOrCreateTable(database, tableName);
   
-    GrouperDdlUtils.ddlutilsFindOrCreateColumn(grouperSqlCacheMshipHstTable, SqlCacheMembershipHst.COLUMN_INTERNAL_ID,
-        Types.BIGINT, "20", true, true);
-
     GrouperDdlUtils.ddlutilsFindOrCreateColumn(grouperSqlCacheMshipHstTable, SqlCacheMembershipHst.COLUMN_END_TIME,
-        Types.TIMESTAMP, null, false, true);
+        Types.BIGINT, "20", false, true);
 
     GrouperDdlUtils.ddlutilsFindOrCreateColumn(grouperSqlCacheMshipHstTable, SqlCacheMembershipHst.COLUMN_START_TIME,
-        Types.TIMESTAMP, null, false, true);
+        Types.BIGINT, "20", true, true);
 
     GrouperDdlUtils.ddlutilsFindOrCreateColumn(grouperSqlCacheMshipHstTable, SqlCacheMembershipHst.COLUMN_SQL_CACHE_GROUP_INTERNAL_ID,
         Types.BIGINT, "20", true, true);
@@ -531,19 +528,13 @@ public class GrouperDdl5_0_4 {
 
     //  CREATE INDEX grouper_sql_cache_mshhst1_idx ON grouper_sql_cache_mship_hst (sql_cache_group_internal_id, end_time);
     GrouperDdlUtils.ddlutilsFindOrCreateIndex(database, SqlCacheMembershipHst.TABLE_GROUPER_SQL_CACHE_MEMBERSHIP_HST, 
-        "grouper_sql_cache_msh_hst1_idx", true, 
+        "grouper_sql_cache_mshhst1_idx", false, 
         SqlCacheMembershipHst.COLUMN_SQL_CACHE_GROUP_INTERNAL_ID, SqlCacheMembershipHst.COLUMN_END_TIME);
 
-    //  CREATE INDEX grouper_sql_cache_mshhst2_idx ON grouper_sql_cache_mship_hst (sql_cache_group_internal_id, start_time);
+    //  CREATE INDEX grouper_sql_cache_mshhst2_idx ON grouper_sql_cache_mship_hst (sql_cache_group_internal_id, start_time, end_time);
     GrouperDdlUtils.ddlutilsFindOrCreateIndex(database, SqlCacheMembershipHst.TABLE_GROUPER_SQL_CACHE_MEMBERSHIP_HST, 
-        "grouper_sql_cache_msh_hst2_idx", true, 
-        SqlCacheMembershipHst.COLUMN_SQL_CACHE_GROUP_INTERNAL_ID, SqlCacheMembershipHst.COLUMN_START_TIME);
-
-    //  CREATE INDEX grouper_sql_cache_mshhst3_idx ON grouper_sql_cache_mship_hst (member_internal_id, sql_cache_group_internal_id, end_time);
-    GrouperDdlUtils.ddlutilsFindOrCreateIndex(database, SqlCacheMembershipHst.TABLE_GROUPER_SQL_CACHE_MEMBERSHIP_HST, 
-        "grouper_sql_cache_msh_hst3_idx", true, SqlCacheMembershipHst.COLUMN_INTERNAL_ID,
-        SqlCacheMembershipHst.COLUMN_SQL_CACHE_GROUP_INTERNAL_ID, SqlCacheMembershipHst.COLUMN_END_TIME);
-        
+        "grouper_sql_cache_mshhst2_idx", false, 
+        SqlCacheMembershipHst.COLUMN_SQL_CACHE_GROUP_INTERNAL_ID, SqlCacheMembershipHst.COLUMN_START_TIME, SqlCacheMembershipHst.COLUMN_END_TIME);        
   }
 
   static void addGrouperSqlCacheMshipHstTableForeignKeys(Database database, DdlVersionBean ddlVersionBean) {
@@ -556,7 +547,7 @@ public class GrouperDdl5_0_4 {
       return;
     }
 
-    //ALTER TABLE grouper_sql_cache_mship_hst ADD CONSTRAINT grouper_sql_cache_mshhst1_fk FOREIGN KEY (sql_cache_group_internal_id) REFERENCES grouper_sql_cache_group(internal_id);
+    //ALTER TABLE grouper_sql_cache_mship_hst ADD CONSTRAINT grouper_sql_cache_msh_hst1_fk FOREIGN KEY (sql_cache_group_internal_id) REFERENCES grouper_sql_cache_group (internal_id);
     GrouperDdlUtils.ddlutilsFindOrCreateForeignKey(database, SqlCacheMembershipHst.TABLE_GROUPER_SQL_CACHE_MEMBERSHIP_HST,
         "grouper_sql_cache_msh_hst1_fk", SqlCacheGroup.TABLE_GROUPER_SQL_CACHE_GROUP, SqlCacheMembershipHst.COLUMN_SQL_CACHE_GROUP_INTERNAL_ID, SqlCacheGroup.COLUMN_INTERNAL_ID);
 
@@ -577,11 +568,6 @@ public class GrouperDdl5_0_4 {
 
     GrouperDdlUtils.ddlutilsColumnComment(ddlVersionBean, 
         SqlCacheMembershipHst.TABLE_GROUPER_SQL_CACHE_MEMBERSHIP_HST, 
-        SqlCacheMembershipHst.COLUMN_INTERNAL_ID, 
-        "internal integer id for this table.  Do not refer to this outside of Grouper.  This will differ per env (dev/test/prod)");
-
-    GrouperDdlUtils.ddlutilsColumnComment(ddlVersionBean, 
-        SqlCacheMembershipHst.TABLE_GROUPER_SQL_CACHE_MEMBERSHIP_HST, 
         SqlCacheMembershipHst.COLUMN_END_TIME, 
         "flattened membership end time");
 
@@ -597,8 +583,8 @@ public class GrouperDdl5_0_4 {
 
     GrouperDdlUtils.ddlutilsColumnComment(ddlVersionBean, 
         SqlCacheMembershipHst.TABLE_GROUPER_SQL_CACHE_MEMBERSHIP_HST, 
-        SqlCacheMembershipHst.COLUMN_INTERNAL_ID, 
-        "internal id of which group/field this membership refers to");
+        SqlCacheMembershipHst.COLUMN_SQL_CACHE_GROUP_INTERNAL_ID, 
+        "internal id of which object/field this membership refers to");
 
 
   }
@@ -708,7 +694,6 @@ public class GrouperDdl5_0_4 {
             "end_time", 
             "group_id",
             "field_id", 
-            "mship_hst_internal_id", 
             "member_internal_id",
             "group_internal_id", 
             "field_internal_id"),
@@ -723,14 +708,13 @@ public class GrouperDdl5_0_4 {
             "end_time: when this membership ended", 
             "group_id: uuid of group",
             "field_id: uuid of field", 
-            "mship_hst_internal_id: history internal id", 
             "member_internal_id: member internal id",
             "group_internal_id: group internal id", 
             "field_internal_id: field internal id"),
         " select "
         + " gg.name as group_name, gf.name as list_name, gm.subject_id, gm.subject_identifier0, gm.subject_identifier1, "
         + " gm.subject_identifier2, gm.subject_source, gscmh.start_time, gscmh.end_time, gg.id as group_id, "
-        + " gf.id as field_id, gscmh.internal_id as mship_hst_internal_id, gm.internal_id as member_internal_id, "
+        + " gf.id as field_id, gm.internal_id as member_internal_id, "
         + " gg.internal_id as group_internal_id, gf.internal_id as field_internal_id from "
         + " grouper_sql_cache_group gscg, grouper_sql_cache_mship_hst gscmh, grouper_fields gf, "
         + " grouper_groups gg, grouper_members gm where gscg.group_internal_id = gg.internal_id "
