@@ -820,7 +820,7 @@ public class GrouperProvisioningLogic {
       return;
     }
     
- // we need to get data from the table
+    // we need to get data from the table
     GcTableSync loadUsersToTableGcTableSync = new GcTableSync();
     
     //retrieve the existing data from database
@@ -1051,7 +1051,7 @@ public class GrouperProvisioningLogic {
     loadMembershipsToTableGcTableSyncTableBeanSql.configureMetadata("grouper", tableName);
     loadMembershipsToTableGcTableSync.setDataBeanTo(loadMembershipsToTableGcTableSyncTableBeanSql);
     
-    Set<String> databaseColumnNames = new LinkedHashSet(grouperProvisioningLoader.getLoaderGroupColumnNames());
+    Set<String> databaseColumnNames = new LinkedHashSet(grouperProvisioningLoader.getLoaderMembershipColumnNames());
 
     Set<String> loadMembershipsToTableUniqueKeyColumnNames = new LinkedHashSet(grouperProvisioningLoader.getLoaderMembershipKeyColumnNames());
 
@@ -1092,7 +1092,7 @@ public class GrouperProvisioningLogic {
 
     List<GcTableSyncRowData> gcTableSyncRowDatas = new ArrayList<GcTableSyncRowData>();
     
-    List<Object[]> targetTableData = grouperProvisioningLoader.retrieveLoaderGroupTableDataFromDataBean();
+    List<Object[]> targetTableData = grouperProvisioningLoader.retrieveLoaderMembershipTableDataFromDataBean();
     
     for (Object[] rowData: targetTableData) {
       
@@ -3559,6 +3559,9 @@ public class GrouperProvisioningLogic {
       return;
     }
     
+    // never null
+    Map<ProvisioningGroup, Object> targetGroupToTargetNativeGroup = this.getGrouperProvisioner().retrieveGrouperProvisioningData().getTargetGroupToTargetNativeGroup();
+    
     // add wrappers for all groups
     for (ProvisioningGroup targetProvisioningGroup : GrouperUtil.nonNull(targetProvisioningGroups)) {
       ProvisioningGroupWrapper provisioningGroupWrapper = targetProvisioningGroup.getProvisioningGroupWrapper();
@@ -3569,6 +3572,7 @@ public class GrouperProvisioningLogic {
       provisioningGroupWrapper.setTargetProvisioningGroup(targetProvisioningGroup);
       this.getGrouperProvisioner().retrieveGrouperProvisioningData().addAndIndexGroupWrapper(provisioningGroupWrapper);
       provisioningGroupWrapper.getProvisioningStateGroup().setSelectResultProcessed(true);
+      provisioningGroupWrapper.setTargetNativeGroup(targetGroupToTargetNativeGroup.get(targetProvisioningGroup));
       
       GcGrouperSyncGroup gcGrouperSyncGroup = provisioningGroupWrapper.getGcGrouperSyncGroup();
 
@@ -4458,6 +4462,9 @@ public class GrouperProvisioningLogic {
         .retrieveGroups(new TargetDaoRetrieveGroupsRequest(missingGrouperTargetGroups, true));
     
     List<ProvisioningGroup> targetGroups = GrouperUtil.nonNull(targetDaoRetrieveGroupsResponse == null ? null : targetDaoRetrieveGroupsResponse.getTargetGroups());
+    
+    GrouperProvisioningLogic.this.getGrouperProvisioner().retrieveGrouperProvisioningData().getTargetGroupToTargetNativeGroup().putAll(
+        GrouperUtil.nonNull(targetDaoRetrieveGroupsResponse.getTargetGroupToTargetNativeGroup()));
 
     this.grouperProvisioner.getDebugMap().put("missingGroupsForRetrieveFound", GrouperUtil.length(targetGroups));
 

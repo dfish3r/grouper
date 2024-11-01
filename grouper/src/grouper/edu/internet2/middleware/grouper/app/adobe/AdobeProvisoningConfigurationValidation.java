@@ -9,14 +9,13 @@ public class AdobeProvisoningConfigurationValidation extends GrouperProvisioning
   
   @Override
   public Collection<String> validateGroupAttributeNamesAllowed() {
-    return GrouperUtil.toSet("description");
+    return GrouperUtil.toSet("name", "id");
 
   }
 
   @Override
   public Collection<String> validateGroupAttributeNamesRequired() {
     return GrouperUtil.toSet("name", "id");
-
   }
 
   @Override
@@ -26,12 +25,12 @@ public class AdobeProvisoningConfigurationValidation extends GrouperProvisioning
 
   @Override
   public Collection<String> validateEntityAttributeNamesAllowed() {
-    return GrouperUtil.toSet("alias1", "alias2", "alias3", "alias4", "name", "email", "firstName", "lastName");
+    return GrouperUtil.toSet("id", "email", "firstname", "lastname", "type", "country");
   }
 
   @Override
   public Collection<String> validateEntityAttributeNamesRequired() {
-    return GrouperUtil.toSet("id", "loginId");
+    return GrouperUtil.toSet("id", "email");
   }
 
   @Override

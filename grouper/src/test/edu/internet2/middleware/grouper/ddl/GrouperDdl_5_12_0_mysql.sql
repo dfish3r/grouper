@@ -1,3 +1,15 @@
+CREATE TABLE grouper_ddl_worker
+(
+    id VARCHAR(40) NOT NULL,
+    grouper VARCHAR(40) NOT NULL,
+    worker_uuid VARCHAR(40) NOT NULL,
+    heartbeat DATETIME,
+    last_updated DATETIME NOT NULL,
+    PRIMARY KEY (id)
+);
+
+CREATE UNIQUE INDEX grouper_ddl_worker_grp_idx ON grouper_ddl_worker (grouper);
+
 CREATE TABLE grouper_ddl
 (
     id VARCHAR(40) NOT NULL,
@@ -1937,50 +1949,6 @@ CREATE TABLE grouper_prov_azure_user
 );
  
 CREATE INDEX grouper_prov_azure_user_idx1 ON grouper_prov_azure_user (user_principal_name(180), config_id);
-
-CREATE TABLE grouper_prov_adobe_user
-(
-    config_id VARCHAR(50) NOT NULL,
-    user_id VARCHAR(100) NOT NULL,
-    email VARCHAR(256) NOT NULL,
-    username VARCHAR(100) NULL,
-    status VARCHAR(30) NULL,
-    adobe_type VARCHAR(30) NULL,
-    firstname VARCHAR(100) NULL,
-    lastname VARCHAR(100) NULL,
-    domain VARCHAR(100) NULL,
-    country VARCHAR(2) NULL,
-    PRIMARY KEY (config_id, user_id)
-);
- 
-CREATE INDEX grouper_prov_adobe_user_idx1 ON grouper_prov_adobe_user (email(100), config_id);
-CREATE INDEX grouper_prov_adobe_user_idx2 ON grouper_prov_adobe_user (username, config_id);
-      
-CREATE TABLE grouper_prov_adobe_group
-(
-    config_id VARCHAR(50) NOT NULL,
-    group_id BIGINT NOT NULL,
-    name VARCHAR(2000) NOT NULL,
-    adobe_type VARCHAR(100) NULL,
-    product_name VARCHAR(2000) NULL,
-    member_count BIGINT NULL,
-    license_quota BIGINT NULL,
-    PRIMARY KEY (config_id, group_id)
-);
- 
-CREATE INDEX grouper_prov_adobe_group_idx1 ON grouper_prov_adobe_group (name(100), config_id);
-
-CREATE TABLE grouper_prov_adobe_membership
-(
-    config_id VARCHAR(50) NOT NULL,
-    group_id BIGINT NOT NULL,
-    user_id VARCHAR(100) NOT NULL,
-    PRIMARY KEY (config_id, group_id, user_id)
-);
-
-ALTER TABLE  grouper_prov_adobe_membership ADD CONSTRAINT grouper_prov_adobe_mship_fk1 FOREIGN KEY (config_id, group_id) REFERENCES grouper_prov_adobe_group(config_id, group_id) on delete cascade;
-ALTER TABLE  grouper_prov_adobe_membership ADD CONSTRAINT grouper_prov_adobe_mship_fk2 FOREIGN KEY (config_id, user_id) REFERENCES grouper_prov_adobe_user(config_id, user_id) on delete cascade;
-
 
 CREATE TABLE grouper_mship_req_change
 (

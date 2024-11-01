@@ -3,6 +3,8 @@ package edu.internet2.middleware.grouper.app.adobe;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.lang3.StringUtils;
+
 import edu.internet2.middleware.grouper.app.provisioning.GrouperProvisioningLoader;
 import edu.internet2.middleware.grouper.app.provisioning.ProvisioningEntity;
 import edu.internet2.middleware.grouper.app.provisioning.ProvisioningGroup;
@@ -34,7 +36,7 @@ public class AdobeProvisioningLoader extends GrouperProvisioningLoader {
   
 
   public List<String> getLoaderGroupColumnNames() {
-    return GrouperUtil.toList("config_id", "group_id", "group_name", "type",
+    return GrouperUtil.toList("config_id", "group_id", "name", "type",
          "product_name", "member_count", "license_quota");
   }
   
@@ -127,12 +129,29 @@ public class AdobeProvisioningLoader extends GrouperProvisioningLoader {
     
     for (ProvisioningMembership targetProvisioningMembership: targetProvisioningMemberships) {
       
-      GrouperAdobeMembership grouperAdobeMembership = (GrouperAdobeMembership)targetProvisioningMembership.getProvisioningMembershipWrapper().getTargetNativeMembership();
+//      GrouperAdobeMembership grouperAdobeMembership = (GrouperAdobeMembership)targetProvisioningMembership.getProvisioningMembershipWrapper().getTargetNativeMembership();
       
-      Object[] row = new Object[this.getLoaderGroupColumnNames().size()];
+      ProvisioningEntity provisioningEntity = targetProvisioningMembership.getProvisioningEntity();
+      ProvisioningGroup provisioningGroup = targetProvisioningMembership.getProvisioningGroup();
+      
+      String userId = null;
+      Long groupId = null;
+      
+      if (provisioningEntity != null) {
+        userId = provisioningEntity.retrieveAttributeValueString("id"); 
+      }
+      if (provisioningGroup != null) {
+        groupId = provisioningGroup.retrieveAttributeValueLong("id"); 
+      }
+      
+      if (StringUtils.isBlank(userId) || groupId == null) {
+        continue;
+      }
+      
+      Object[] row = new Object[this.getLoaderMembershipColumnNames().size()];
       row[0] = this.getGrouperProvisioner().getConfigId();
-      row[1] = grouperAdobeMembership.getGroupId();
-      row[2] = grouperAdobeMembership.getUserId();
+      row[1] = groupId;
+      row[2] = userId;
       result.add(row);
     }
     

@@ -1275,8 +1275,7 @@ public enum UpgradeTasks implements UpgradeTasksInterface {
   }
   ,
   
- V24{
-    
+ V26{
     @Override
     public void updateVersionFromPrevious(OtherJobInput otherJobInput) {
       
@@ -1296,9 +1295,9 @@ public enum UpgradeTasks implements UpgradeTasksInterface {
                   config_id VARCHAR(50) NOT NULL,
                   user_id VARCHAR(100) NOT NULL,
                   email VARCHAR(256) NOT NULL,
-                  username VARCHAR(256) NOT NULL,
+                  username VARCHAR(100),
                   status VARCHAR(30) NULL,
-                  "type" VARCHAR(30) NULL,
+                  adobe_type VARCHAR(30) NULL,
                   firstname VARCHAR(100) NULL,
                   lastname VARCHAR(100) NULL,
                   domain VARCHAR(100) NULL,
@@ -1316,9 +1315,9 @@ public enum UpgradeTasks implements UpgradeTasksInterface {
                   config_id VARCHAR2(50) NOT NULL,
                   user_id VARCHAR2(100) NOT NULL,
                   email VARCHAR2(256) NOT NULL,
-                  username VARCHAR2(256) NOT NULL,
+                  username VARCHAR2(100),
                   status VARCHAR2(30) NULL,
-                  "type" VARCHAR2(30) NULL,
+                  adobe_type VARCHAR2(30) NULL,
                   firstname VARCHAR2(100) NULL,
                   lastname VARCHAR2(100) NULL,
                   domain VARCHAR2(100) NULL,
@@ -1334,12 +1333,12 @@ public enum UpgradeTasks implements UpgradeTasksInterface {
                 new GcDbAccess().sql("""
                   CREATE TABLE grouper_prov_adobe_user
                 (
-                    config_id VARCHAR(100) NOT NULL,
+                    config_id VARCHAR(50) NOT NULL,
                     user_id VARCHAR(100) NOT NULL,
                     email VARCHAR(256) NOT NULL,
-                    username VARCHAR(256) NOT NULL,
+                    username VARCHAR(100),
                     status VARCHAR(30) NULL,
-                    "type" VARCHAR(30) NULL,
+                    adobe_type VARCHAR(30) NULL,
                     firstname VARCHAR(100) NULL,
                     lastname VARCHAR(100) NULL,
                     domain VARCHAR(100) NULL,
@@ -1359,7 +1358,7 @@ public enum UpgradeTasks implements UpgradeTasksInterface {
                 new GcDbAccess().sql("COMMENT ON COLUMN grouper_prov_adobe_user.email IS 'email address'").executeSql();
                 new GcDbAccess().sql("COMMENT ON COLUMN grouper_prov_adobe_user.username IS 'username the user'").executeSql();
                 new GcDbAccess().sql("COMMENT ON COLUMN grouper_prov_adobe_user.status IS 'adobe status for the user'").executeSql();
-                new GcDbAccess().sql("COMMENT ON COLUMN grouper_prov_adobe_user.\"type\" IS 'type for the user'").executeSql();
+                new GcDbAccess().sql("COMMENT ON COLUMN grouper_prov_adobe_user.adobe_type IS 'type for the user'").executeSql();
                 new GcDbAccess().sql("COMMENT ON COLUMN grouper_prov_adobe_user.firstname IS 'first name for the user'").executeSql();
                 new GcDbAccess().sql("COMMENT ON COLUMN grouper_prov_adobe_user.lastname IS 'last name for the user'").executeSql();
                 new GcDbAccess().sql("COMMENT ON COLUMN grouper_prov_adobe_user.domain IS 'domain for the user'").executeSql();
@@ -1385,10 +1384,10 @@ public enum UpgradeTasks implements UpgradeTasksInterface {
                 new GcDbAccess().sql("""
               CREATE TABLE grouper_prov_adobe_group
               (
-                  config_id VARCHAR(100) NOT NULL,
+                  config_id VARCHAR(50) NOT NULL,
                   group_id BIGINT NOT NULL,
                   name VARCHAR(2000) NOT NULL,
-                  "type" VARCHAR(100) NULL,
+                  adobe_type VARCHAR(100) NULL,
                   product_name VARCHAR(2000) NULL,
                   member_count BIGINT NULL,
                   license_quota BIGINT NULL,
@@ -1402,10 +1401,10 @@ public enum UpgradeTasks implements UpgradeTasksInterface {
                 new GcDbAccess().sql("""
               CREATE TABLE grouper_prov_adobe_group
             (
-                config_id VARCHAR2(100) NOT NULL,
+                config_id VARCHAR2(50) NOT NULL,
                 group_id NUMBER(38) NOT NULL,
                 name VARCHAR2(2000) NOT NULL,
-                "type" VARCHAR2(100) NULL,
+                adobe_type VARCHAR2(100) NULL,
                 product_name VARCHAR2(2000) NULL,
                 member_count NUMBER(38) NULL,
                 license_quota NUMBER(38) NULL,
@@ -1420,10 +1419,10 @@ public enum UpgradeTasks implements UpgradeTasksInterface {
                 new GcDbAccess().sql("""
                   CREATE TABLE grouper_prov_adobe_group
                 (
-                    config_id VARCHAR(100) NOT NULL,
+                    config_id VARCHAR(50) NOT NULL,
                     group_id BIGINT NOT NULL,
                     name VARCHAR(2000) NOT NULL,
-                    "type" VARCHAR(100) NULL,
+                    adobe_type VARCHAR(100) NULL,
                     product_name VARCHAR(2000) NULL,
                     member_count BIGINT NULL,
                     license_quota BIGINT NULL,
@@ -1438,8 +1437,8 @@ public enum UpgradeTasks implements UpgradeTasksInterface {
                 new GcDbAccess().sql("COMMENT ON TABLE grouper_prov_adobe_group IS 'table to load adobe groups into a sql for reporting, provisioning, and deprovisioning'").executeSql();
                 new GcDbAccess().sql("COMMENT ON COLUMN grouper_prov_adobe_group.config_id IS 'adobe config id identifies which adobe external system is being loaded'").executeSql();
                 new GcDbAccess().sql("COMMENT ON COLUMN grouper_prov_adobe_group.group_id IS 'adobe group id for this group (used in web services)'").executeSql();
-                new GcDbAccess().sql("COMMENT ON COLUMN grouper_prov_adobe_group.\"name\" IS 'group name'").executeSql();
-                new GcDbAccess().sql("COMMENT ON COLUMN grouper_prov_adobe_group.\"type\" IS 'type for the group'").executeSql();
+                new GcDbAccess().sql("COMMENT ON COLUMN grouper_prov_adobe_group.name IS 'group name'").executeSql();
+                new GcDbAccess().sql("COMMENT ON COLUMN grouper_prov_adobe_group.adobe_type IS 'type for the group'").executeSql();
                 new GcDbAccess().sql("COMMENT ON COLUMN grouper_prov_adobe_group.product_name IS 'product name for the group'").executeSql();
                 new GcDbAccess().sql("COMMENT ON COLUMN grouper_prov_adobe_group.member_count IS 'member count for the group'").executeSql();
                 new GcDbAccess().sql("COMMENT ON COLUMN grouper_prov_adobe_group.license_quota IS 'license quota for the group'").executeSql();
@@ -1465,7 +1464,7 @@ public enum UpgradeTasks implements UpgradeTasksInterface {
                 }
 
               } else if (GrouperDdlUtils.isMysql() ) {
-                new GcDbAccess().sql("CREATE INDEX grouper_prov_adobe_user_idx1 ON grouper_prov_adobe_user (email, config_id)").executeSql();
+                new GcDbAccess().sql("CREATE INDEX grouper_prov_adobe_user_idx1 ON grouper_prov_adobe_user (email(100), config_id)").executeSql();
                 if (otherJobInput != null) {
                   otherJobInput.getHib3GrouperLoaderLog().addInsertCount(1);
                 }
@@ -1509,7 +1508,7 @@ public enum UpgradeTasks implements UpgradeTasksInterface {
                 }
 
               } else if (GrouperDdlUtils.isMysql() ) {
-                new GcDbAccess().sql("CREATE INDEX grouper_prov_adobe_group_idx1 ON grouper_prov_adobe_group (name, config_id)").executeSql();
+                new GcDbAccess().sql("CREATE INDEX grouper_prov_adobe_group_idx1 ON grouper_prov_adobe_group (name(100), config_id)").executeSql();
                 if (otherJobInput != null) {
                   otherJobInput.getHib3GrouperLoaderLog().addInsertCount(1);
                 }
@@ -1519,7 +1518,7 @@ public enum UpgradeTasks implements UpgradeTasksInterface {
               }
             } else {
               if (otherJobInput != null) {
-                otherJobInput.getHib3GrouperLoaderLog().appendJobMessage(", index grouper_prov_azure_group_idx1 exists already");
+                otherJobInput.getHib3GrouperLoaderLog().appendJobMessage(", index grouper_prov_adobe_group_idx1 exists already");
               }
             }
             
@@ -1529,7 +1528,7 @@ public enum UpgradeTasks implements UpgradeTasksInterface {
                 new GcDbAccess().sql("""
               CREATE TABLE grouper_prov_adobe_membership
               (
-                  config_id VARCHAR(100) NOT NULL,
+                  config_id VARCHAR(50) NOT NULL,
                   group_id BIGINT NOT NULL,
                   user_id VARCHAR(100) NOT NULL,
                   PRIMARY KEY (config_id, group_id, user_id)
@@ -1543,7 +1542,7 @@ public enum UpgradeTasks implements UpgradeTasksInterface {
                 new GcDbAccess().sql("""
               CREATE TABLE grouper_prov_adobe_membership
               (
-                  config_id VARCHAR2(100) NOT NULL,
+                  config_id VARCHAR2(50) NOT NULL,
                   group_id NUMBER(38) NOT NULL,
                   user_id VARCHAR2(100) NOT NULL,
                   PRIMARY KEY (config_id, group_id, user_id)
@@ -1557,7 +1556,7 @@ public enum UpgradeTasks implements UpgradeTasksInterface {
                 new GcDbAccess().sql("""
                   CREATE TABLE grouper_prov_adobe_membership
                   (
-                      config_id VARCHAR(100) NOT NULL,
+                      config_id VARCHAR(50) NOT NULL,
                       group_id BIGINT NOT NULL,
                       user_id VARCHAR(100) NOT NULL,
                       PRIMARY KEY (config_id, group_id, user_id)

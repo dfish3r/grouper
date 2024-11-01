@@ -4,43 +4,9 @@ import java.sql.Types;
 
 import edu.internet2.middleware.grouper.ext.org.apache.ddlutils.model.Database;
 import edu.internet2.middleware.grouper.ext.org.apache.ddlutils.model.Table;
+import edu.internet2.middleware.grouper.util.GrouperUtil;
 
-public class GrouperDdl5_13_0 {
-  
-  /**
-   * if building to this version at least
-   */
-  public static boolean buildingToThisVersionAtLeast(DdlVersionBean ddlVersionBean) {
-    int buildingToVersion = ddlVersionBean.getBuildingToVersion();
-    //TODO increment this in v5
-    boolean buildingToThisVersionAtLeast = GrouperDdl.V48.getVersion() <= buildingToVersion;
-
-    return buildingToThisVersionAtLeast;
-  }
-
-  /**
-   * if building to this version at least
-   */
-  static boolean buildingFromScratch(DdlVersionBean ddlVersionBean) {
-    int buildingFromVersion = ddlVersionBean.getBuildingFromVersion();
-    if (buildingFromVersion <= 0) {
-      return true;
-    }
-    return false;
-  }
-
-  /**
-   * if building to this version at least
-   */
-  @SuppressWarnings("unused")
-  private static boolean buildingToPreviousVersion(DdlVersionBean ddlVersionBean) {
-    int buildingToVersion = ddlVersionBean.getBuildingToVersion();
-    
-    //TODO increment this in v5
-    boolean buildingToPreviousVersion = GrouperDdl.V48.getVersion() > buildingToVersion;
-
-    return buildingToPreviousVersion;
-  }
+public class GrouperDdl5_14_0 {
   
   public static final String TABLE_GROUPER_PROV_ADOBE_USER = "grouper_prov_adobe_user";
   
@@ -50,15 +16,15 @@ public class GrouperDdl5_13_0 {
   
   public static final String COLUMN_GROUPER_PROV_ADOBE_USER_EMAIL = "email";
   
-  public static final String COLUMN_GROUPER_PROV_ADOBE_USER_USER_NAME = "user_name";
+  public static final String COLUMN_GROUPER_PROV_ADOBE_USER_USER_NAME = "username";
   
   public static final String COLUMN_GROUPER_PROV_ADOBE_USER_STATUS = "status";
   
-  public static final String COLUMN_GROUPER_PROV_ADOBE_USER_TYPE= "type";
+  public static final String COLUMN_GROUPER_PROV_ADOBE_USER_TYPE= "adobe_type";
   
-  public static final String COLUMN_GROUPER_PROV_ADOBE_USER_FIRST_NAME= "first_name";
+  public static final String COLUMN_GROUPER_PROV_ADOBE_USER_FIRST_NAME= "firstname";
   
-  public static final String COLUMN_GROUPER_PROV_ADOBE_USER_LAST_NAME= "last_name";
+  public static final String COLUMN_GROUPER_PROV_ADOBE_USER_LAST_NAME= "lastname";
   
   public static final String COLUMN_GROUPER_PROV_ADOBE_USER_DOMAIN= "domain";
   
@@ -73,7 +39,7 @@ public class GrouperDdl5_13_0 {
 
   public static final String COLUMN_GROUPER_PROV_ADOBE_GROUP_NAME = "name";
   
-  public static final String COLUMN_GROUPER_PROV_ADOBE_GROUP_TYPE = "type";
+  public static final String COLUMN_GROUPER_PROV_ADOBE_GROUP_TYPE = "adobe_type";
 
   public static final String COLUMN_GROUPER_PROV_ADOBE_GROUP_PRODUCT_NAME = "product_name";
   
@@ -94,11 +60,11 @@ public class GrouperDdl5_13_0 {
   
   static void addGrouperProvAdobeUserComments(Database database, DdlVersionBean ddlVersionBean) {
     
-    if (!buildingToThisVersionAtLeast(ddlVersionBean)) {
+    if (!GrouperDdl5_12_0.buildingToThisVersionAtLeast(ddlVersionBean)) {
       return;
     }
   
-    if (ddlVersionBean.didWeDoThis("v5_0_5_addGrouperProvAdobeUserComments", true)) {
+    if (ddlVersionBean.didWeDoThis("v5_14_0_addGrouperProvAdobeUserComments", true)) {
       return;
     }
   
@@ -161,11 +127,11 @@ public class GrouperDdl5_13_0 {
   
   static void addGrouperProvAdobeGroupComments(Database database, DdlVersionBean ddlVersionBean) {
     
-    if (!buildingToThisVersionAtLeast(ddlVersionBean)) {
+    if (!GrouperDdl5_12_0.buildingToThisVersionAtLeast(ddlVersionBean)) {
       return;
     }
   
-    if (ddlVersionBean.didWeDoThis("v5_0_5_addGrouperProvAdobeGroupComments", true)) {
+    if (ddlVersionBean.didWeDoThis("v5_14_0_addGrouperProvAdobeGroupComments", true)) {
       return;
     }
   
@@ -214,11 +180,11 @@ public class GrouperDdl5_13_0 {
   
   static void addGrouperProvAdobeMembershipComments(Database database, DdlVersionBean ddlVersionBean) {
     
-    if (!buildingToThisVersionAtLeast(ddlVersionBean)) {
+    if (!GrouperDdl5_12_0.buildingToThisVersionAtLeast(ddlVersionBean)) {
       return;
     }
   
-    if (ddlVersionBean.didWeDoThis("v5_0_5_addGrouperProvAdobeMembershipComments", true)) {
+    if (ddlVersionBean.didWeDoThis("v5_14_0_addGrouperProvAdobeMembershipComments", true)) {
       return;
     }
   
@@ -246,11 +212,11 @@ public class GrouperDdl5_13_0 {
   }
   
   static void addGrouperProvAdobeUserIndex(DdlVersionBean ddlVersionBean, Database database) {
-    if (!buildingToThisVersionAtLeast(ddlVersionBean)) {
+    if (!GrouperDdl5_12_0.buildingToThisVersionAtLeast(ddlVersionBean)) {
       return;
     }
     
-    if (ddlVersionBean.didWeDoThis("v5_0_5_addGrouperProvAdobeUserIndex", true)) {
+    if (ddlVersionBean.didWeDoThis("v5_14_0_addGrouperProvAdobeUserIndex", true)) {
       return;
     }
   
@@ -267,11 +233,11 @@ public class GrouperDdl5_13_0 {
   }
   
   static void addGrouperProvAdobeGroupIndex(DdlVersionBean ddlVersionBean, Database database) {
-    if (!buildingToThisVersionAtLeast(ddlVersionBean)) {
+    if (!GrouperDdl5_12_0.buildingToThisVersionAtLeast(ddlVersionBean)) {
       return;
     }
     
-    if (ddlVersionBean.didWeDoThis("v5_0_5_addGrouperProvAdobeGroupIndex", true)) {
+    if (ddlVersionBean.didWeDoThis("v5_14_0_addGrouperProvAdobeGroupIndex", true)) {
       return;
     }
   
@@ -282,17 +248,14 @@ public class GrouperDdl5_13_0 {
         "grouper_prov_adobe_group_idx1", true, 
         COLUMN_GROUPER_PROV_ADOBE_GROUP_GROUP_ID, COLUMN_GROUPER_PROV_ADOBE_GROUP_CONFIG_ID);
     
-    GrouperDdlUtils.ddlutilsFindOrCreateIndex(database, grouperDuoTable.getName(), 
-        "grouper_prov_adobe_group_idx2", true, 
-        COLUMN_GROUPER_PROV_ADOBE_GROUP_NAME, COLUMN_GROUPER_PROV_ADOBE_GROUP_CONFIG_ID);
   }
   
   static void addGrouperProvAdobeMembershipIndex(DdlVersionBean ddlVersionBean, Database database) {
-    if (!buildingToThisVersionAtLeast(ddlVersionBean)) {
+    if (!GrouperDdl5_12_0.buildingToThisVersionAtLeast(ddlVersionBean)) {
       return;
     }
     
-    if (ddlVersionBean.didWeDoThis("v5_0_5_addGrouperProvAdobeMembershipIndex", true)) {
+    if (ddlVersionBean.didWeDoThis("v5_14_0_addGrouperProvAdobeMembershipIndex", true)) {
       return;
     }
   
@@ -300,22 +263,22 @@ public class GrouperDdl5_13_0 {
         TABLE_GROUPER_PROV_ADOBE_MEMBERSHIP);
     
     GrouperDdlUtils.ddlutilsFindOrCreateForeignKey(database, grouperDuoTable.getName(), 
-        "grouper_prov_adobe_membership_fk1", "grouper_prov_adobe_group",
-        "group_id", "group_id");
+        "grouper_prov_adobe_mship_fk1", "grouper_prov_adobe_group",
+        GrouperUtil.toList("config_id", "group_id"), GrouperUtil.toList("config_id", "group_id"));
     
     GrouperDdlUtils.ddlutilsFindOrCreateForeignKey(database, grouperDuoTable.getName(), 
-        "grouper_prov_adobe_membership_fk2", "grouper_prov_adobe_user",
-        "user_id", "user_id");
+        "grouper_prov_adobe_mship_fk2", "grouper_prov_adobe_user",
+        GrouperUtil.toList("config_id", "user_id"), GrouperUtil.toList("config_id", "user_id"));
     
   }
 
   static void addGrouperProvAdobeUserTable(Database database, DdlVersionBean ddlVersionBean) {
     
-    if (!buildingToThisVersionAtLeast(ddlVersionBean)) {
+    if (!GrouperDdl5_12_0.buildingToThisVersionAtLeast(ddlVersionBean)) {
       return;
     }
   
-    if (ddlVersionBean.didWeDoThis("v5_0_5_addGrouperProvAdobeUserTable", true)) {
+    if (ddlVersionBean.didWeDoThis("v5_14_0_addGrouperProvAdobeUserTable", true)) {
       return;
     }
     
@@ -324,7 +287,7 @@ public class GrouperDdl5_13_0 {
     Table grouperFileTable = GrouperDdlUtils.ddlutilsFindOrCreateTable(database, tableName);
   
     GrouperDdlUtils.ddlutilsFindOrCreateColumn(grouperFileTable, COLUMN_GROUPER_PROV_ADOBE_USER_CONFIG_ID,
-        Types.VARCHAR, "100", true, true);
+        Types.VARCHAR, "50", true, true);
     
     GrouperDdlUtils.ddlutilsFindOrCreateColumn(grouperFileTable, COLUMN_GROUPER_PROV_ADOBE_USER_USER_ID,
         Types.VARCHAR, "100", true, true);
@@ -333,7 +296,7 @@ public class GrouperDdl5_13_0 {
         Types.VARCHAR, "256", false, true);
     
     GrouperDdlUtils.ddlutilsFindOrCreateColumn(grouperFileTable, COLUMN_GROUPER_PROV_ADOBE_USER_USER_NAME,
-        Types.VARCHAR, "256", false, true);
+        Types.VARCHAR, "100", false, false);
     
     GrouperDdlUtils.ddlutilsFindOrCreateColumn(grouperFileTable, COLUMN_GROUPER_PROV_ADOBE_USER_STATUS,
         Types.VARCHAR, "30", false, false);
@@ -357,11 +320,11 @@ public class GrouperDdl5_13_0 {
   
   static void addGrouperProvAdobeGroupTable(Database database, DdlVersionBean ddlVersionBean) {
     
-    if (!buildingToThisVersionAtLeast(ddlVersionBean)) {
+    if (!GrouperDdl5_12_0.buildingToThisVersionAtLeast(ddlVersionBean)) {
       return;
     }
   
-    if (ddlVersionBean.didWeDoThis("v5_0_5_addGrouperProvAdobeGroupTable", true)) {
+    if (ddlVersionBean.didWeDoThis("v5_14_0_addGrouperProvAdobeGroupTable", true)) {
       return;
     }
     
@@ -370,7 +333,7 @@ public class GrouperDdl5_13_0 {
     Table grouperFileTable = GrouperDdlUtils.ddlutilsFindOrCreateTable(database, tableName);
   
     GrouperDdlUtils.ddlutilsFindOrCreateColumn(grouperFileTable, COLUMN_GROUPER_PROV_ADOBE_GROUP_CONFIG_ID,
-        Types.VARCHAR, "100", true, true);
+        Types.VARCHAR, "50", true, true);
 
     GrouperDdlUtils.ddlutilsFindOrCreateColumn(grouperFileTable, COLUMN_GROUPER_PROV_ADOBE_GROUP_GROUP_ID,
         Types.BIGINT, "20", true, true);
@@ -394,11 +357,11 @@ public class GrouperDdl5_13_0 {
   
   static void addGrouperProvAdobeMembershipTable(Database database, DdlVersionBean ddlVersionBean) {
     
-    if (!buildingToThisVersionAtLeast(ddlVersionBean)) {
+    if (!GrouperDdl5_12_0.buildingToThisVersionAtLeast(ddlVersionBean)) {
       return;
     }
   
-    if (ddlVersionBean.didWeDoThis("v5_0_5_addGrouperProvAdobeMembershipTable", true)) {
+    if (ddlVersionBean.didWeDoThis("v5_14_0_addGrouperProvAdobeMembershipTable", true)) {
       return;
     }
     
@@ -407,7 +370,7 @@ public class GrouperDdl5_13_0 {
     Table grouperFileTable = GrouperDdlUtils.ddlutilsFindOrCreateTable(database, tableName);
   
     GrouperDdlUtils.ddlutilsFindOrCreateColumn(grouperFileTable, COLUMN_GROUPER_PROV_ADOBE_MEMBERSHIP_CONFIG_ID,
-        Types.VARCHAR, "100", true, true);
+        Types.VARCHAR, "50", true, true);
 
     GrouperDdlUtils.ddlutilsFindOrCreateColumn(grouperFileTable, COLUMN_GROUPER_PROV_ADOBE_MEMBERSHIP_GROUP_ID,
         Types.BIGINT, "20", true, true);

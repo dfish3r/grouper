@@ -767,7 +767,10 @@ public class GrouperProvisionerTargetDaoAdapter extends GrouperProvisionerTarget
 
           this.getGrouperProvisioner().retrieveGrouperProvisioningData().getTargetEntityToTargetNativeEntity().putAll(
               GrouperUtil.nonNull(targetDaoRetrieveAllDataResponse.getTargetEntityToTargetNativeEntity()));
-
+          
+          this.getGrouperProvisioner().retrieveGrouperProvisioningData().getTargetGroupToTargetNativeGroup().putAll(
+              GrouperUtil.nonNull(targetDaoRetrieveAllDataResponse.getTargetGroupToTargetNativeGroup()));
+          
           this.getGrouperProvisioner().retrieveGrouperProvisioningLogic().processTargetDataGroups(targetData.getProvisioningGroups(), false);
           this.getGrouperProvisioner().retrieveGrouperProvisioningLogic().processTargetDataEntities(targetData.getProvisioningEntities(), false);
           this.getGrouperProvisioner().retrieveGrouperProvisioningLogic().processTargetDataMemberships(targetData.getProvisioningMemberships(), false);
@@ -811,6 +814,9 @@ public class GrouperProvisionerTargetDaoAdapter extends GrouperProvisionerTarget
       List<ProvisioningGroup> targetGroups = targetDaoRetrieveAllGroupsResponse == null ? null : targetDaoRetrieveAllGroupsResponse.getTargetGroups();
       targetObjects.setProvisioningGroups(targetGroups);
 
+      this.getGrouperProvisioner().retrieveGrouperProvisioningData().getTargetGroupToTargetNativeGroup().putAll(
+          GrouperUtil.nonNull(targetDaoRetrieveAllGroupsResponse.getTargetGroupToTargetNativeGroup()));
+      
       this.getGrouperProvisioner().retrieveGrouperProvisioningLogic().processTargetDataGroups(targetObjects.getProvisioningGroups(), false);
       this.getGrouperProvisioner().getProvisioningStateGlobal().setSelectResultProcessedGroups(true);
       

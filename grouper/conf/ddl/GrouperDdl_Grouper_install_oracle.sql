@@ -2066,9 +2066,9 @@ CREATE TABLE grouper_prov_adobe_user
     config_id VARCHAR2(50) NOT NULL,
     user_id VARCHAR2(100) NOT NULL,
     email VARCHAR2(256) NOT NULL,
-    username VARCHAR2(256) NOT NULL,
+    username VARCHAR2(100) NULL,
     status VARCHAR2(30) NULL,
-    "type" VARCHAR2(30) NULL,
+    adobe_type VARCHAR2(30) NULL,
     firstname VARCHAR2(100) NULL,
     lastname VARCHAR2(100) NULL,
     domain VARCHAR2(100) NULL,
@@ -2081,10 +2081,10 @@ CREATE INDEX grouper_prov_adobe_user_idx2 ON grouper_prov_adobe_user (username, 
 
 CREATE TABLE grouper_prov_adobe_group
 (
-    config_id VARCHAR2(100) NOT NULL,
+    config_id VARCHAR2(50) NOT NULL,
     group_id NUMBER(38) NOT NULL,
     name VARCHAR2(2000) NOT NULL,
-    "type" VARCHAR2(100) NULL,
+    adobe_type VARCHAR2(100) NULL,
     product_name VARCHAR2(2000) NULL,
     member_count NUMBER(38) NULL,
     license_quota NUMBER(38) NULL,
@@ -2095,7 +2095,7 @@ CREATE INDEX grouper_prov_adobe_group_idx1 ON grouper_prov_adobe_group (name, co
 
 CREATE TABLE grouper_prov_adobe_membership
 (
-    config_id VARCHAR2(100) NOT NULL,
+    config_id VARCHAR2(50) NOT NULL,
     group_id NUMBER(38) NOT NULL,
     user_id VARCHAR2(100) NOT NULL,
     PRIMARY KEY (config_id, group_id, user_id)
@@ -7790,7 +7790,7 @@ COMMENT ON COLUMN grouper_prov_adobe_user.username IS 'username the user';
  
 COMMENT ON COLUMN grouper_prov_adobe_user.status IS 'adobe status for the user';
  
-COMMENT ON COLUMN grouper_prov_adobe_user."type" IS 'type for the user';
+COMMENT ON COLUMN grouper_prov_adobe_user.adobe_type IS 'type for the user';
  
 COMMENT ON COLUMN grouper_prov_adobe_user.firstname IS 'first name for the user';
 
@@ -7808,7 +7808,7 @@ COMMENT ON COLUMN grouper_prov_adobe_group.group_id IS 'adobe group id for this 
  
 COMMENT ON COLUMN grouper_prov_adobe_group.name IS 'group name';
  
-COMMENT ON COLUMN grouper_prov_adobe_group."type" IS 'type for the user';
+COMMENT ON COLUMN grouper_prov_adobe_group.adobe_type IS 'type for the group';
  
 COMMENT ON COLUMN grouper_prov_adobe_group.product_name IS 'product name for the group';
 
@@ -7825,6 +7825,6 @@ COMMENT ON COLUMN grouper_prov_adobe_membership.group_id IS 'adobe group id for 
 COMMENT ON COLUMN grouper_prov_adobe_membership.user_id IS 'adobe user id for this membership';
 
 insert into grouper_ddl (id, object_name, db_version, last_updated, history) values 
-('c08d3e076fdb4c41acdafe5992e5dc4d', 'Grouper', 48, to_char(systimestamp, 'YYYY/MM/DD HH12:MI:SS'), 
-to_char(systimestamp, 'YYYY/MM/DD HH12:MI:SS') || ': upgrade Grouper from V0 to V48, ');
+('c08d3e076fdb4c41acdafe5992e5dc4d', 'Grouper', 47, to_char(systimestamp, 'YYYY/MM/DD HH12:MI:SS'), 
+to_char(systimestamp, 'YYYY/MM/DD HH12:MI:SS') || ': upgrade Grouper from V0 to V47, ');
 commit;
