@@ -402,25 +402,23 @@ public class GrouperScim2ApiCommands {
           fieldToUpdate = "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User.costCenter";
         } else if ("employeeNumber".equals(fieldToUpdate)) {
           fieldToUpdate = "urn:ietf:params:scim:schemas:extension:enterprise:2.0:User.employeeNumber";
-        } else if ("familyName".equals(fieldToUpdate)) {
-          fieldToUpdate = "name.familyName";
         } else if ("formattedName".equals(fieldToUpdate)) {
-          fieldToUpdate = "name.formatted";
-        } else if ("middleName".equals(fieldToUpdate)) {
-          fieldToUpdate = "name.middleName";
-        } else if ("givenName".equals(fieldToUpdate)) {
-          fieldToUpdate = "name.givenName";
+          fieldToUpdate = "formatted";
+//        } else if ("familyName".equals(fieldToUpdate)) {
+//          fieldToUpdate = "name.familyName";
+//        } else if ("middleName".equals(fieldToUpdate)) {
+//          fieldToUpdate = "name.middleName";
+//        } else if ("givenName".equals(fieldToUpdate)) {
+//          fieldToUpdate = "name.givenName";
         }
         
-        if (!GrouperScim2User.builtInAttributes.contains(fieldToUpdate)) {
+        if (grouperScim2User.getCustomAttributeNameToJsonPointer() != null && grouperScim2User.getCustomAttributeNameToJsonPointer().containsKey(fieldToUpdate)) {
           
-          if (grouperScim2User.getCustomAttributeNameToJsonPointer() != null && grouperScim2User.getCustomAttributeNameToJsonPointer().containsKey(fieldToUpdate)) {
-            String jsonPointer = grouperScim2User.getCustomAttributeNameToJsonPointer().get(fieldToUpdate);
-            Object value = grouperScim2User.getCustomAttributes().get(fieldToUpdate);
-            ObjectNode valueNode = GrouperUtil.jsonJacksonNode();
-            operationNode.set("value", valueNode);
-            GrouperUtil.jsonJacksonAssignJsonPointerString(valueNode, jsonPointer, value);
-          }
+          String jsonPointer = grouperScim2User.getCustomAttributeNameToJsonPointer().get(fieldToUpdate);
+          Object value = grouperScim2User.getCustomAttributes().get(fieldToUpdate);
+          ObjectNode valueNode = GrouperUtil.jsonJacksonNode();
+          operationNode.set("value", valueNode);
+          GrouperUtil.jsonJacksonAssignJsonPointerString(valueNode, jsonPointer, value);
           
         } else {
           operationNode.put("path", fieldToUpdate);
@@ -525,15 +523,13 @@ public class GrouperScim2ApiCommands {
         }
 //        operationNode.put("path", fieldToUpdate);
         
-        if (!GrouperScim2Group.builtInAttributes.contains(fieldToUpdate)) {
-          
-          if (grouperScim2Group.getCustomAttributeNameToJsonPointer() != null && grouperScim2Group.getCustomAttributeNameToJsonPointer().containsKey(fieldToUpdate)) {
-            String jsonPointer = grouperScim2Group.getCustomAttributeNameToJsonPointer().get(fieldToUpdate);
-            Object value = grouperScim2Group.getCustomAttributes().get(fieldToUpdate);
-            ObjectNode valueNode = GrouperUtil.jsonJacksonNode();
-            operationNode.set("value", valueNode);
-            GrouperUtil.jsonJacksonAssignJsonPointerString(valueNode, jsonPointer, value);
-          }
+        
+        if (grouperScim2Group.getCustomAttributeNameToJsonPointer() != null && grouperScim2Group.getCustomAttributeNameToJsonPointer().containsKey(fieldToUpdate)) {
+          String jsonPointer = grouperScim2Group.getCustomAttributeNameToJsonPointer().get(fieldToUpdate);
+          Object value = grouperScim2Group.getCustomAttributes().get(fieldToUpdate);
+          ObjectNode valueNode = GrouperUtil.jsonJacksonNode();
+          operationNode.set("value", valueNode);
+          GrouperUtil.jsonJacksonAssignJsonPointerString(valueNode, jsonPointer, value);
           
         } else {
           operationNode.put("path", fieldToUpdate);
@@ -825,6 +821,11 @@ public class GrouperScim2ApiCommands {
             GrouperUtil.toSet(200), new int[] { -1 }, null, acceptHeader, orgName);
 
         int totalResults = GrouperUtil.jsonJacksonGetInteger(jsonNode, "totalResults");
+        if (totalResults == 0) {
+          return results;
+        }
+
+        // do not do this until after seeing if total results is 0
         int itemsPerPage = GrouperUtil.jsonJacksonGetInteger(jsonNode, "itemsPerPage");
         int returnedStartIndex = GrouperUtil.jsonJacksonGetInteger(jsonNode, "startIndex");
         if (previousStartIndex == returnedStartIndex) {
@@ -837,10 +838,6 @@ public class GrouperScim2ApiCommands {
               + ", itemsPerPage: " + itemsPerPage + ", startIndex: " + startIndex + ", resultsRetrieved: " + results.size());
         }
 
-        if (totalResults == 0) {
-          return results;
-        }
-        
         ArrayNode resourcesNode = (ArrayNode)jsonNode.get("Resources");
 
         if (resourcesNode.size() == 0) {
@@ -1366,6 +1363,13 @@ public class GrouperScim2ApiCommands {
               GrouperUtil.toSet(200), new int[] { -1 }, null, acceptHeader, null);
         }
         int totalResults = GrouperUtil.jsonJacksonGetInteger(jsonNode, "totalResults");
+        
+        if (totalResults == 0) {
+          return results;
+        }
+
+        // do not do this until after seeing if total results is 0
+
         int itemsPerPage = GrouperUtil.jsonJacksonGetInteger(jsonNode, "itemsPerPage");
         int returnedStartIndex = GrouperUtil.jsonJacksonGetInteger(jsonNode, "startIndex");
         if (previousStartIndex == returnedStartIndex) {
@@ -1379,10 +1383,6 @@ public class GrouperScim2ApiCommands {
               + ", itemsPerPage: " + itemsPerPage + ", startIndex: " + startIndex + ", resultsRetrieved: " + results.size());
         }
 
-        if (totalResults == 0) {
-          return results;
-        }
-        
         ArrayNode resourcesNode = (ArrayNode)jsonNode.get("Resources");
 
         if (resourcesNode.size() == 0) {

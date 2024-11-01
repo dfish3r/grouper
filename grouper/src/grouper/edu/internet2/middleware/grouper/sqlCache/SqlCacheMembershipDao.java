@@ -1,7 +1,6 @@
 package edu.internet2.middleware.grouper.sqlCache;
 
 import java.sql.Connection;
-import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -12,7 +11,6 @@ import java.util.Map;
 import java.util.Set;
 
 import edu.internet2.middleware.grouper.MemberFinder;
-import edu.internet2.middleware.grouper.app.loader.GrouperDaemonUtils;
 import edu.internet2.middleware.grouper.util.GrouperUtil;
 import edu.internet2.middleware.grouperClient.collections.MultiKey;
 import edu.internet2.middleware.grouperClient.jdbc.GcDbAccess;
@@ -64,14 +62,14 @@ public class SqlCacheMembershipDao {
 
   /**
    * things to add to sql cache memberships.  5 fields in multikey: 
-   * groupName, fieldName, sourceId, subjectId, millisSince1970whenMembershipStarted (Long)
-   * @param groupNameFieldNameSourceIdSubjectIdStartedMillis
+   * groupName, fieldName, sourceId, subjectId, microsSince1970whenMembershipStarted (Long)
+   * @param groupNameFieldNameSourceIdSubjectIdStartedMicros
    * @param connection optionally pass connection to use
    * @return number of changes
    */
-  public static int insertSqlCacheMembershipsIfCacheable(Collection<MultiKey> ownerNameFieldNameSourceIdSubjectIdStartedMillis, Connection connection) {
+  public static int insertSqlCacheMembershipsIfCacheable(Collection<MultiKey> ownerNameFieldNameSourceIdSubjectIdStartedMicros, Connection connection) {
     
-    if (GrouperUtil.length(ownerNameFieldNameSourceIdSubjectIdStartedMillis) == 0) {
+    if (GrouperUtil.length(ownerNameFieldNameSourceIdSubjectIdStartedMicros) == 0) {
       return 0;
     }
     
@@ -79,28 +77,28 @@ public class SqlCacheMembershipDao {
     
     Set<MultiKey> ownerNameFieldNames = new HashSet<>();
     
-    Map<MultiKey, MultiKey> ownerNameFieldNameSourceIdSubjectIdStartedMilliToOwnerNameFieldName = new HashMap<>();
+    Map<MultiKey, MultiKey> ownerNameFieldNameSourceIdSubjectIdStartedMicroToOwnerNameFieldName = new HashMap<>();
     
-    for (MultiKey ownerNameFieldNameSourceIdSubjectIdStartedMilli : ownerNameFieldNameSourceIdSubjectIdStartedMillis) {
-      String ownerName = (String)ownerNameFieldNameSourceIdSubjectIdStartedMilli.getKey(0);
-      String fieldName = (String)ownerNameFieldNameSourceIdSubjectIdStartedMilli.getKey(1);
+    for (MultiKey ownerNameFieldNameSourceIdSubjectIdStartedMicro : ownerNameFieldNameSourceIdSubjectIdStartedMicros) {
+      String ownerName = (String)ownerNameFieldNameSourceIdSubjectIdStartedMicro.getKey(0);
+      String fieldName = (String)ownerNameFieldNameSourceIdSubjectIdStartedMicro.getKey(1);
       
       MultiKey ownerNameFieldName = new MultiKey(ownerName, fieldName);
       ownerNameFieldNames.add(ownerNameFieldName);
-      ownerNameFieldNameSourceIdSubjectIdStartedMilliToOwnerNameFieldName.put(ownerNameFieldNameSourceIdSubjectIdStartedMilli, ownerNameFieldName);
+      ownerNameFieldNameSourceIdSubjectIdStartedMicroToOwnerNameFieldName.put(ownerNameFieldNameSourceIdSubjectIdStartedMicro, ownerNameFieldName);
       
     }
     
     Map<MultiKey, SqlCacheGroup> ownerNameFieldNameToSqlCacheGroup = SqlCacheGroupDao.retrieveByOwnerNamesFieldNames(ownerNameFieldNames, connection);
     
-    List<MultiKey> ownerNameFieldNameSourceIdSubjectIdStartedMillisList = new ArrayList<>(ownerNameFieldNameSourceIdSubjectIdStartedMillis);
+    List<MultiKey> ownerNameFieldNameSourceIdSubjectIdStartedMicrosList = new ArrayList<>(ownerNameFieldNameSourceIdSubjectIdStartedMicros);
     
-    Iterator<MultiKey> iterator = ownerNameFieldNameSourceIdSubjectIdStartedMillisList.iterator();
+    Iterator<MultiKey> iterator = ownerNameFieldNameSourceIdSubjectIdStartedMicrosList.iterator();
     
     // filter out uncacheable
     while (iterator.hasNext()) {
-      MultiKey ownerNameFieldNameSourceIdSubjectIdStartedMilli = iterator.next();
-      MultiKey ownerNameFieldName = ownerNameFieldNameSourceIdSubjectIdStartedMilliToOwnerNameFieldName.get(ownerNameFieldNameSourceIdSubjectIdStartedMilli);
+      MultiKey ownerNameFieldNameSourceIdSubjectIdStartedMicro = iterator.next();
+      MultiKey ownerNameFieldName = ownerNameFieldNameSourceIdSubjectIdStartedMicroToOwnerNameFieldName.get(ownerNameFieldNameSourceIdSubjectIdStartedMicro);
       SqlCacheGroup sqlCacheGroup = ownerNameFieldNameToSqlCacheGroup.get(ownerNameFieldName);
       
       if (sqlCacheGroup == null || (sqlCacheGroup.getDisabledOn() != null && sqlCacheGroup.getDisabledOn().getTime() < currentTimeMillis)
@@ -110,16 +108,16 @@ public class SqlCacheMembershipDao {
 
     }
 
-    Map<MultiKey, MultiKey> ownerNameFieldNameSourceIdSubjectIdStartedMilliToSourceIdSubjectId = new HashMap<>();
+    Map<MultiKey, MultiKey> ownerNameFieldNameSourceIdSubjectIdStartedMicroToSourceIdSubjectId = new HashMap<>();
     Set<MultiKey> sourceIdSubjectIds = new HashSet<>();
     
-    for (MultiKey ownerNameFieldNameSourceIdSubjectIdStartedMilli : ownerNameFieldNameSourceIdSubjectIdStartedMillisList) {
-      String sourceId = (String)ownerNameFieldNameSourceIdSubjectIdStartedMilli.getKey(2);
-      String subjectId = (String)ownerNameFieldNameSourceIdSubjectIdStartedMilli.getKey(3);
+    for (MultiKey ownerNameFieldNameSourceIdSubjectIdStartedMicro : ownerNameFieldNameSourceIdSubjectIdStartedMicrosList) {
+      String sourceId = (String)ownerNameFieldNameSourceIdSubjectIdStartedMicro.getKey(2);
+      String subjectId = (String)ownerNameFieldNameSourceIdSubjectIdStartedMicro.getKey(3);
       
       MultiKey sourceIdSubjectId = new MultiKey(sourceId, subjectId);
       sourceIdSubjectIds.add(sourceIdSubjectId);
-      ownerNameFieldNameSourceIdSubjectIdStartedMilliToSourceIdSubjectId.put(ownerNameFieldNameSourceIdSubjectIdStartedMilli, sourceIdSubjectId);
+      ownerNameFieldNameSourceIdSubjectIdStartedMicroToSourceIdSubjectId.put(ownerNameFieldNameSourceIdSubjectIdStartedMicro, sourceIdSubjectId);
       
     }
 
@@ -128,9 +126,9 @@ public class SqlCacheMembershipDao {
     List<SqlCacheMembership> sqlCacheMembershipsToInsert = new ArrayList<>();
     Set<SqlCacheGroup> sqlCacheGroupsToUpdate = new HashSet<>();
 
-    for (MultiKey ownerNameFieldNameSourceIdSubjectIdStartedMilli : ownerNameFieldNameSourceIdSubjectIdStartedMillisList) {
+    for (MultiKey ownerNameFieldNameSourceIdSubjectIdStartedMicro : ownerNameFieldNameSourceIdSubjectIdStartedMicrosList) {
 
-      MultiKey sourceIdSubjectId = ownerNameFieldNameSourceIdSubjectIdStartedMilliToSourceIdSubjectId.get(ownerNameFieldNameSourceIdSubjectIdStartedMilli);
+      MultiKey sourceIdSubjectId = ownerNameFieldNameSourceIdSubjectIdStartedMicroToSourceIdSubjectId.get(ownerNameFieldNameSourceIdSubjectIdStartedMicro);
       
       if (sourceIdSubjectId == null) {
         continue;
@@ -142,7 +140,7 @@ public class SqlCacheMembershipDao {
         continue;
       }
       
-      MultiKey ownerNameFieldName = ownerNameFieldNameSourceIdSubjectIdStartedMilliToOwnerNameFieldName.get(ownerNameFieldNameSourceIdSubjectIdStartedMilli);
+      MultiKey ownerNameFieldName = ownerNameFieldNameSourceIdSubjectIdStartedMicroToOwnerNameFieldName.get(ownerNameFieldNameSourceIdSubjectIdStartedMicro);
       
       if (ownerNameFieldName == null) {
         continue;
@@ -155,9 +153,8 @@ public class SqlCacheMembershipDao {
       }
       
       SqlCacheMembership sqlCacheMembership = new SqlCacheMembership();
-      Long membershipAddedLong = (Long)ownerNameFieldNameSourceIdSubjectIdStartedMilli.getKey(4);
-      Timestamp membershipAdded = new Timestamp(membershipAddedLong);
-      sqlCacheMembership.setFlattenedAddTimestamp(membershipAdded);
+      Long membershipAddedLong = (Long)ownerNameFieldNameSourceIdSubjectIdStartedMicro.getKey(4);
+      sqlCacheMembership.setFlattenedAddTimestamp(membershipAddedLong);
       sqlCacheMembership.setMemberInternalId(memberInternalId);
       sqlCacheMembership.setSqlCacheGroupInternalId(sqlCacheGroup.getInternalId());
       sqlCacheMembershipsToInsert.add(sqlCacheMembership);
@@ -171,54 +168,6 @@ public class SqlCacheMembershipDao {
     SqlCacheGroupDao.store(sqlCacheGroupsToUpdate, connection, false);
     
     return numberOfChanges;
-  }
-  
-  /**
-   * note the sql cache group record needs to be already inserted
-   * @param groupNamesFieldNames
-   * @return the number of inserts
-   */
-  public static int insertSqlCacheMembershipsAsNeededFromSource(Collection<MultiKey> groupNamesFieldNames) {
-    
-    Set<MultiKey> sqlGroupInternalIdsMemberInternalIds = new HashSet<MultiKey>();
-    
-    for (MultiKey groupNameFieldName : groupNamesFieldNames) {
-      GrouperDaemonUtils.stopProcessingIfJobPaused();
-
-      GcDbAccess gcDbAccess = new GcDbAccess();
-      StringBuilder sql = new StringBuilder("select gscg.internal_id, gm.internal_id "
-          + " from grouper_memberships_lw_v gmlv, grouper_groups gg, grouper_fields gf, grouper_members gm, grouper_sql_cache_group gscg "
-          + " where group_name = ? and list_name = ?  "
-          + " and gg.id = gmlv.group_id and gm.id = gmlv.member_id and gf.name = gmlv.list_name "
-          + " and gscg.group_internal_id = gg.internal_id and gscg.field_internal_id = gf.internal_id " 
-          + " and not exists (select 1 from grouper_sql_cache_mship gscm where gscm.sql_cache_group_internal_id = gscg.internal_id "
-          + " and gscm.member_internal_id = gm.internal_id) ");
-      gcDbAccess.sql(sql.toString());
-      gcDbAccess.addBindVar((String)groupNameFieldName.getKey(0));
-      gcDbAccess.addBindVar((String)groupNameFieldName.getKey(1));
-      List<Object[]> sqlGroupInternalIdsMemberInternalIdsList = gcDbAccess.selectList(Object[].class);
-      for (Object[] sqlGroupInternalIdMemberInternalId : sqlGroupInternalIdsMemberInternalIdsList) {
-        sqlGroupInternalIdsMemberInternalIds.add(new MultiKey(
-            GrouperUtil.longValue(sqlGroupInternalIdMemberInternalId[0]), GrouperUtil.longValue(sqlGroupInternalIdMemberInternalId[1])));
-      }
-    }
-    
-    List<SqlCacheMembership> sqlCacheMembershipsToInsert = new ArrayList<>();
-
-    // TODO get the real time
-    Long membershipAddedLong = System.currentTimeMillis();
-    for (MultiKey sqlGroupInternalIdMemberInternalId :  sqlGroupInternalIdsMemberInternalIds) {
-      SqlCacheMembership sqlCacheMembership = new SqlCacheMembership();
-      Timestamp membershipAdded = new Timestamp(membershipAddedLong);
-      sqlCacheMembership.setFlattenedAddTimestamp(membershipAdded);
-      sqlCacheMembership.setSqlCacheGroupInternalId((Long)sqlGroupInternalIdMemberInternalId.getKey(0));
-      sqlCacheMembership.setMemberInternalId((Long)sqlGroupInternalIdMemberInternalId.getKey(1));
-      sqlCacheMembershipsToInsert.add(sqlCacheMembership);
-      
-    }
-    
-    return SqlCacheMembershipDao.store(sqlCacheMembershipsToInsert);
-    
   }
   
   /**

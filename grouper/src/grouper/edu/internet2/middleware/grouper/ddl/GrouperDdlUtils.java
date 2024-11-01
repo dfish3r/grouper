@@ -2975,6 +2975,66 @@ public class GrouperDdlUtils {
     }
   }
   
+  /**
+   * Checks if the columnName in the given tableName is allowed to be null.
+   * @param tableName
+   * @param columnName
+   * @param queryColumnName
+   * @param queryColumnValue
+   * @return
+   */
+  public static boolean isColumnNullable(String tableName, String columnName, String queryColumnName, long queryColumnValue) {
+    GrouperLoaderDb grouperDb = GrouperLoaderConfig.retrieveDbProfile("grouper");
+    Connection connection = null;
+    PreparedStatement preparedStatement = null;
+    ResultSet resultSet = null;
+    try {
+      connection = grouperDb.connection();
+      preparedStatement = connection.prepareStatement("select " + columnName + " from " + tableName + " where " + queryColumnName + "= ?");
+      preparedStatement.setLong(1, queryColumnValue);
+      resultSet = preparedStatement.executeQuery();
+      ResultSetMetaData metadata = resultSet.getMetaData();
+      if (metadata.isNullable(1) == ResultSetMetaData.columnNoNulls) {
+        return false;
+      }
+      
+      return true;
+    } catch (SQLException e) {
+      throw new RuntimeException(e);
+    } finally {
+      GrouperUtil.closeQuietly(resultSet);
+      GrouperUtil.closeQuietly(preparedStatement);
+      GrouperUtil.closeQuietly(connection);
+    }
+  }
+  
+  /**
+   * Returns the java.sql.Types value for the column
+   * -5 is bigint.  93 is timestamp.  2 is numeric (number in Oracle).
+   * @param tableName
+   * @param columnName
+   * @return
+   */
+  public static int getColumnType(String tableName, String columnName) {
+    GrouperLoaderDb grouperDb = GrouperLoaderConfig.retrieveDbProfile("grouper");
+    Connection connection = null;
+    PreparedStatement preparedStatement = null;
+    ResultSet resultSet = null;
+    try {
+      connection = grouperDb.connection();
+      preparedStatement = connection.prepareStatement("select " + columnName + " from " + tableName + " where 1 = 2");
+      resultSet = preparedStatement.executeQuery();
+      ResultSetMetaData metadata = resultSet.getMetaData();
+      return metadata.getColumnType(1);
+    } catch (SQLException e) {
+      throw new RuntimeException(e);
+    } finally {
+      GrouperUtil.closeQuietly(resultSet);
+      GrouperUtil.closeQuietly(preparedStatement);
+      GrouperUtil.closeQuietly(connection);
+    }
+  }
+  
   public static boolean doesConstraintExistOracle(String constraintName) {
     if (!GrouperDdlUtils.isOracle()) {
       throw new RuntimeException("Database not oracle!");

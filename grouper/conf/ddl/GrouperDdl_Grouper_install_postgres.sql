@@ -2331,24 +2331,22 @@ CREATE INDEX grouper_sql_cache_group2_idx ON grouper_sql_cache_group (last_membe
 CREATE TABLE grouper_sql_cache_mship (
   sql_cache_group_internal_id bigint NOT NULL,
   member_internal_id bigint not NULL,
-  flattened_add_timestamp timestamp not null,
+  flattened_add_timestamp bigint not null,
   PRIMARY KEY (member_internal_id, sql_cache_group_internal_id)
 );
 
-CREATE INDEX grouper_sql_cache_mship1_idx ON grouper_sql_cache_mship (sql_cache_group_internal_id, flattened_add_timestamp);
+CREATE INDEX grouper_sql_cache_mship3_idx ON grouper_sql_cache_mship (sql_cache_group_internal_id, flattened_add_timestamp);
 
 CREATE TABLE grouper_sql_cache_mship_hst (
-  internal_id bigint NOT NULL,
   sql_cache_group_internal_id bigint NOT NULL,
-  member_internal_id bigint not NULL,
-  start_time timestamp not null,
-  end_time timestamp not null,
-  PRIMARY KEY (internal_id)
+  member_internal_id bigint NOT NULL,
+  start_time bigint NOT NULL,
+  end_time bigint NOT NULL,
+  PRIMARY KEY (member_internal_id, sql_cache_group_internal_id, start_time)
 );
 
-CREATE UNIQUE INDEX grouper_sql_cache_mshhst1_idx ON grouper_sql_cache_mship_hst (sql_cache_group_internal_id, end_time);
-CREATE UNIQUE INDEX grouper_sql_cache_mshhst2_idx ON grouper_sql_cache_mship_hst (sql_cache_group_internal_id, start_time);
-CREATE UNIQUE INDEX grouper_sql_cache_mshhst3_idx ON grouper_sql_cache_mship_hst (internal_id, sql_cache_group_internal_id, end_time);
+CREATE INDEX grouper_sql_cache_mshhst1_idx ON grouper_sql_cache_mship_hst (sql_cache_group_internal_id, end_time);
+CREATE INDEX grouper_sql_cache_mshhst2_idx ON grouper_sql_cache_mship_hst (sql_cache_group_internal_id, start_time, end_time);
 
 ALTER TABLE grouper_data_alias ADD CONSTRAINT grouper_data_alias_fk FOREIGN KEY (data_field_internal_id) REFERENCES grouper_data_field(internal_id);
 
@@ -7570,15 +7568,13 @@ COMMENT ON COLUMN grouper_sql_cache_mship.sql_cache_group_internal_id IS 'intern
 
 COMMENT ON TABLE grouper_sql_cache_mship_hst IS 'Flattened point in time cache table for memberships or privileges';
 
-COMMENT ON COLUMN grouper_sql_cache_mship_hst.internal_id IS 'internal integer id for this table.  Do not refer to this outside of Grouper.  This will differ per env (dev/test/prod)';
-
 COMMENT ON COLUMN grouper_sql_cache_mship_hst.end_time IS 'flattened membership end time';
 
 COMMENT ON COLUMN grouper_sql_cache_mship_hst.start_time IS 'flattened membership start time';
 
 COMMENT ON COLUMN grouper_sql_cache_mship_hst.member_internal_id IS 'member internal id of who this membership refers to';
 
-COMMENT ON COLUMN grouper_sql_cache_mship_hst.internal_id IS 'internal id of which group/field this membership refers to';
+COMMENT ON COLUMN grouper_sql_cache_mship_hst.sql_cache_group_internal_id IS 'internal id of which object/field this membership refers to';
 
 create view grouper_data_field_assign_v as
 select gdf.config_id data_field_config_id, gm.subject_id, gd.the_text value_text, gdfa.value_integer,  
@@ -7714,7 +7710,7 @@ COMMENT ON COLUMN grouper_sql_cache_mship_v.group_internal_id IS 'group_internal
 
 COMMENT ON COLUMN grouper_sql_cache_mship_v.field_internal_id IS 'field_internal_id: field internal id';
 
-CREATE VIEW grouper_sql_cache_mship_hst_v (group_name, list_name, subject_id, subject_identifier0, subject_identifier1, subject_identifier2, subject_source, start_time, end_time, group_id, field_id, mship_hst_internal_id, member_internal_id, group_internal_id, field_internal_id) AS select  gg.name as group_name, gf.name as list_name, gm.subject_id, gm.subject_identifier0, gm.subject_identifier1,  gm.subject_identifier2, gm.subject_source, gscmh.start_time, gscmh.end_time, gg.id as group_id,  gf.id as field_id, gscmh.internal_id as mship_hst_internal_id, gm.internal_id as member_internal_id,  gg.internal_id as group_internal_id, gf.internal_id as field_internal_id from  grouper_sql_cache_group gscg, grouper_sql_cache_mship_hst gscmh, grouper_fields gf,  grouper_groups gg, grouper_members gm where gscg.group_internal_id = gg.internal_id  and gscg.field_internal_id = gf.internal_id and gscmh.sql_cache_group_internal_id = gscg.internal_id  and gscmh.member_internal_id = gm.internal_id ;
+CREATE VIEW grouper_sql_cache_mship_hst_v (group_name, list_name, subject_id, subject_identifier0, subject_identifier1, subject_identifier2, subject_source, start_time, end_time, group_id, field_id, member_internal_id, group_internal_id, field_internal_id) AS select  gg.name as group_name, gf.name as list_name, gm.subject_id, gm.subject_identifier0, gm.subject_identifier1,  gm.subject_identifier2, gm.subject_source, gscmh.start_time, gscmh.end_time, gg.id as group_id,  gf.id as field_id, gm.internal_id as member_internal_id,  gg.internal_id as group_internal_id, gf.internal_id as field_internal_id from  grouper_sql_cache_group gscg, grouper_sql_cache_mship_hst gscmh, grouper_fields gf,  grouper_groups gg, grouper_members gm where gscg.group_internal_id = gg.internal_id  and gscg.field_internal_id = gf.internal_id and gscmh.sql_cache_group_internal_id = gscg.internal_id  and gscmh.member_internal_id = gm.internal_id ;
 
 COMMENT ON VIEW grouper_sql_cache_mship_hst_v IS 'SQL cache mship history view';
 
@@ -7739,8 +7735,6 @@ COMMENT ON COLUMN grouper_sql_cache_mship_hst_v.end_time IS 'end_time: when this
 COMMENT ON COLUMN grouper_sql_cache_mship_hst_v.group_id IS 'group_id: uuid of group';
 
 COMMENT ON COLUMN grouper_sql_cache_mship_hst_v.field_id IS 'field_id: uuid of field';
-
-COMMENT ON COLUMN grouper_sql_cache_mship_hst_v.mship_hst_internal_id IS 'mship_hst_internal_id: history internal id';
 
 COMMENT ON COLUMN grouper_sql_cache_mship_hst_v.member_internal_id IS 'member_internal_id: member internal id';
 

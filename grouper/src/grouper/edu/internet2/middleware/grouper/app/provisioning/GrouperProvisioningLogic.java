@@ -87,6 +87,10 @@ public class GrouperProvisioningLogic {
     Map<String, Object> debugMap = this.getGrouperProvisioner().getDebugMap();
     Timestamp startTimestamp = new Timestamp(System.currentTimeMillis());
 
+    if (!this.getGrouperProvisioner().retrieveGrouperProvisioningConfiguration().isRunLogicInFullDaemon()) {
+      throw new RuntimeException("Provisioner or global default is set to not run logic in full daemon! runLogicInFullDaemon");
+    }
+    
     this.getGrouperProvisioner().getGcGrouperSyncJob().setErrorMessage(null);
     this.getGrouperProvisioner().getGcGrouperSyncJob().setErrorTimestamp(null);
     
@@ -294,10 +298,16 @@ public class GrouperProvisioningLogic {
     this.getGrouperProvisioner().retrieveGrouperProvisioningValidation().validateEntities(this.grouperProvisioner.retrieveGrouperProvisioningData().retrieveGrouperTargetEntities(), false, true, false);
     
     try {
+      this.logCompareCalculationsPreCompare();
+      
       debugMap.put("state", "compareTargetObjects");
       this.grouperProvisioner.retrieveGrouperProvisioningCompare().compareTargetObjects();
     } finally {
+      this.logCompareCalculationsPostCompare();
+
       this.getGrouperProvisioner().retrieveGrouperProvisioningObjectLog().debug(GrouperProvisioningObjectLogType.compareTargetObjects);
+      
+      
     }
     
     this.getGrouperProvisioner().retrieveGrouperProvisioningFailsafe().processFailsafesAtStart();
@@ -1261,6 +1271,9 @@ public class GrouperProvisioningLogic {
 
     Map<String, Object> debugMap = this.getGrouperProvisioner().getDebugMap();
 
+    if (!this.getGrouperProvisioner().retrieveGrouperProvisioningConfiguration().isRunLogicInIncrementalDaemon()) {
+      throw new RuntimeException("Provisioner or global default is set to not run logic in incremental daemon! runLogicInIncrementalDaemon");
+    }
 
     GrouperProvisioningLogicIncremental grouperProvisioningLogicIncremental = this.getGrouperProvisioner().retrieveGrouperProvisioningLogicIncremental();
 
@@ -1697,10 +1710,14 @@ public class GrouperProvisioningLogic {
           
           // ######### STEP 36: compare target objects
           try {
+            this.logCompareCalculationsPreCompare();
             debugMap.put("state", "compareTargetObjectsIncremental");
             this.grouperProvisioner.retrieveGrouperProvisioningCompare().compareTargetObjects();
           } finally {
+            this.logCompareCalculationsPostCompare();
+
             this.getGrouperProvisioner().retrieveGrouperProvisioningObjectLog().debug(GrouperProvisioningObjectLogType.compareTargetObjects);
+            
           }
                 
           this.getGrouperProvisioner().retrieveGrouperProvisioningFailsafe().processFailsafes();
@@ -1802,6 +1819,207 @@ public class GrouperProvisioningLogic {
     // ######### STEP 36: acknowledge messages
     this.getGrouperProvisioner().retrieveGrouperProvisioningLogicIncremental().acknowledgeMessagesProcessed();
 
+  }
+
+  public void logCompareCalculationsHelper(String label, ProvisioningUpdatable provisioningUpdatable, List<ProvisioningMembership> membershipsForReplace) {
+    String prefix = label + ": " + provisioningUpdatable.toString(false);
+    boolean logResult = true;
+    StringBuilder logMessage = new StringBuilder(prefix);
+    int actionCount = 0;
+    if (GrouperUtil.length(provisioningUpdatable.getInternal_objectChanges()) > 0) {
+      for (String attributeName : provisioningUpdatable.retrieveAttributes().keySet()) {
+        
+        for (ProvisioningObjectChange provisioningObjectChange : provisioningUpdatable.getInternal_objectChanges()) {
+          
+          if (!StringUtils.equals(attributeName, provisioningObjectChange.getAttributeName())) {
+            continue;
+          }
+          logMessage.append("\n - (action ").append(actionCount+1).append("/").append(GrouperUtil.length(provisioningUpdatable.getInternal_objectChanges())).append("): ")
+            .append(provisioningObjectChange.getProvisioningObjectChangeAction().name().substring(0, 3)).append(" ").append(provisioningObjectChange.getAttributeName()).append(" ");
+          switch(provisioningObjectChange.getProvisioningObjectChangeAction()) {
+            case insert:
+              logMessage.append(ProvisioningUpdatable.stringValueWithType(provisioningObjectChange.getNewValue()));
+              break;
+            case delete:
+              logMessage.append(ProvisioningUpdatable.stringValueWithType(provisioningObjectChange.getOldValue()));
+              break;
+            case update:
+              logMessage.append(ProvisioningUpdatable.stringValueWithType(provisioningObjectChange.getOldValue()));
+              logMessage.append(" -> ");
+              logMessage.append(ProvisioningUpdatable.stringValueWithType(provisioningObjectChange.getNewValue()));
+              break;
+          }
+          actionCount++;
+          if ((actionCount + 1) % 1001 == 0) {
+            logResult = false;
+            this.getGrouperProvisioner().retrieveGrouperProvisioningObjectLog().info(logMessage.toString());
+            logMessage = new StringBuilder(prefix);
+          } else {
+            logResult = true;
+          }
+
+        }
+      }      
+    }
+    if (GrouperUtil.length(membershipsForReplace) > 0) {
+      for (ProvisioningMembership provisioningMembership : membershipsForReplace) {
+        
+        StringBuilder result = new StringBuilder();
+        
+        result.append("\n - (action ").append(actionCount+1).append("/").append(GrouperUtil.length(provisioningUpdatable.getInternal_objectChanges())).append("): ")
+          .append("replace").append(" ").append(" ");
+        result.append(provisioningMembership.toString(true));
+        actionCount++;
+        if ((actionCount + 1) % 1001 == 0) {
+          logResult = false;
+          this.getGrouperProvisioner().retrieveGrouperProvisioningObjectLog().info(logMessage.toString());
+          logMessage = new StringBuilder(prefix);
+        } else {
+          logResult = true;
+        }
+      }      
+    }
+    if (logResult) {
+      this.getGrouperProvisioner().retrieveGrouperProvisioningObjectLog().info(logMessage.toString());
+    }
+  }
+  
+  public void logCompareCalculationsPreCompare() {
+    
+    // log after compare if necessary
+    if (grouperProvisioner.retrieveGrouperProvisioningConfiguration().isLogCompareCalculations()) {
+      
+      GrouperProvisioningLists grouperTargetObjectsMissing = grouperProvisioner.retrieveGrouperProvisioningDataChanges().getGrouperTargetObjectsMissing();
+
+      if (GrouperUtil.length(grouperTargetObjectsMissing.getProvisioningEntities()) > 0) {
+        this.getGrouperProvisioner().retrieveGrouperProvisioningObjectLog().info("### Insert entities " + grouperTargetObjectsMissing.getProvisioningEntities().size());
+        for (ProvisioningEntity provisioningEntity : grouperTargetObjectsMissing.getProvisioningEntities()) {
+          logCompareCalculationsHelper("Insert entity", provisioningEntity, null);
+        }
+
+      }
+      
+      if (GrouperUtil.length(grouperTargetObjectsMissing.getProvisioningGroups()) > 0) {
+        this.getGrouperProvisioner().retrieveGrouperProvisioningObjectLog().info("### Insert groups " + grouperTargetObjectsMissing.getProvisioningGroups().size());
+        for (ProvisioningGroup provisioningGroup : grouperTargetObjectsMissing.getProvisioningGroups()) {
+          logCompareCalculationsHelper("Insert group", provisioningGroup, null);
+        }
+        
+      }
+      
+    }
+    
+  }
+
+
+  public void logCompareCalculationsPostCompare() {
+    
+    
+    // log after compare if necessary
+    if (grouperProvisioner.retrieveGrouperProvisioningConfiguration().isLogCompareCalculations()) {
+
+
+      if (GrouperUtil.length(this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectInserts().getProvisioningGroups()) > 0) {
+        this.getGrouperProvisioner().retrieveGrouperProvisioningObjectLog().info("### Insert groups " 
+            + this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectInserts().getProvisioningGroups().size());
+        for (ProvisioningGroup provisioningGroup : this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectInserts().getProvisioningGroups()) {
+          logCompareCalculationsHelper("Insert group", provisioningGroup, null);
+        }
+        
+      }
+      
+      if (GrouperUtil.length(this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectInserts().getProvisioningEntities()) > 0) {
+        this.getGrouperProvisioner().retrieveGrouperProvisioningObjectLog().info("### Insert entities " + this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectInserts().getProvisioningEntities().size());
+        for (ProvisioningEntity provisioningEntity : this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectInserts().getProvisioningEntities()) {
+          logCompareCalculationsHelper("Insert entity", provisioningEntity, null);
+        }
+
+      }
+      
+      if (GrouperUtil.length(this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectInserts().getProvisioningMemberships()) > 0) {
+        this.getGrouperProvisioner().retrieveGrouperProvisioningObjectLog().info("### Insert memberships " 
+            + GrouperUtil.length(this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectInserts().getProvisioningMemberships()));
+        for (ProvisioningMembership provisioningMembership 
+            : GrouperUtil.nonNull(this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectInserts().getProvisioningMemberships())) {
+          logCompareCalculationsHelper("Insert membership", provisioningMembership, null);
+        }
+      }
+      
+
+      if (GrouperUtil.length(this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectUpdates().getProvisioningGroups()) > 0) {
+        this.getGrouperProvisioner().retrieveGrouperProvisioningObjectLog().info("### Update groups " 
+            + GrouperUtil.length(this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectUpdates().getProvisioningGroups()));
+        for (ProvisioningGroup provisioningGroup 
+            : GrouperUtil.nonNull(this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectUpdates().getProvisioningGroups())) {
+          logCompareCalculationsHelper("Update group", provisioningGroup, null);
+        }
+      }
+      
+
+      if (GrouperUtil.length(this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectUpdates().getProvisioningEntities()) > 0) {
+        this.getGrouperProvisioner().retrieveGrouperProvisioningObjectLog().info("### Update entities " 
+            + GrouperUtil.length(this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectUpdates().getProvisioningEntities()));
+        for (ProvisioningEntity provisioningEntity
+            : GrouperUtil.nonNull(this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectUpdates().getProvisioningEntities())) {
+          logCompareCalculationsHelper("Update entity", provisioningEntity, null);
+        }
+      }
+      
+
+      if (GrouperUtil.length(this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectUpdates().getProvisioningMemberships()) > 0) {
+        this.getGrouperProvisioner().retrieveGrouperProvisioningObjectLog().info("### Update memberships " 
+            + GrouperUtil.length(this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectUpdates().getProvisioningMemberships()));
+        for (ProvisioningMembership provisioningMembership
+            : GrouperUtil.nonNull(this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectUpdates().getProvisioningMemberships())) {
+          logCompareCalculationsHelper("Update memberhip", provisioningMembership, null);
+        }
+      }
+      
+      
+      if (GrouperUtil.length(this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectDeletes().getProvisioningGroups()) > 0) {
+        this.getGrouperProvisioner().retrieveGrouperProvisioningObjectLog().info("### Delete groups " 
+            + GrouperUtil.length(this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectDeletes().getProvisioningGroups()));
+        for (ProvisioningGroup provisioningGroup 
+            : GrouperUtil.nonNull(this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectDeletes().getProvisioningGroups())) {
+          logCompareCalculationsHelper("Delete group", provisioningGroup, null);
+        }
+      }
+      
+
+      if (GrouperUtil.length(this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectDeletes().getProvisioningEntities()) > 0) {
+        this.getGrouperProvisioner().retrieveGrouperProvisioningObjectLog().info("### Delete entities " 
+            + GrouperUtil.length(this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectDeletes().getProvisioningEntities()));
+        for (ProvisioningEntity provisioningEntity
+            : GrouperUtil.nonNull(this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectDeletes().getProvisioningEntities())) {
+          logCompareCalculationsHelper("Delete entity", provisioningEntity, null);
+        }
+      }
+      
+
+      if (GrouperUtil.length(this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectUpdates().getProvisioningMemberships()) > 0) {
+        this.getGrouperProvisioner().retrieveGrouperProvisioningObjectLog().info("### Delete memberships " 
+            + GrouperUtil.length(this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectUpdates().getProvisioningMemberships()));
+        for (ProvisioningMembership provisioningMembership
+            : GrouperUtil.nonNull(this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectUpdates().getProvisioningMemberships())) {
+          logCompareCalculationsHelper("Delete memberhip", provisioningMembership, null);
+        }
+      }
+      
+
+      if (GrouperUtil.length(this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectReplaces().getProvisioningMemberships()) > 0) {
+        this.getGrouperProvisioner().retrieveGrouperProvisioningObjectLog().info("### Replace group memberships " 
+            + GrouperUtil.length(this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectReplaces().getProvisioningMemberships()));
+        for (ProvisioningGroup provisioningGroup 
+            : GrouperUtil.nonNull(this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectReplaces().getProvisioningMemberships()).keySet()) {
+          logCompareCalculationsHelper("Replace group", provisioningGroup, 
+              this.grouperProvisioner.retrieveGrouperProvisioningDataChanges().getTargetObjectReplaces().getProvisioningMemberships().get(provisioningGroup));
+        }
+      }
+      
+    }
+    
+    
+    
   }
 
   /**
@@ -3828,7 +4046,7 @@ public class GrouperProvisioningLogic {
   
     Map<String, ProvisioningEntityWrapper> memberUuidToProvisioningMemberWrapper = this.getGrouperProvisioner().retrieveGrouperProvisioningDataIndex().getMemberUuidToProvisioningEntityWrapper();
   
-    int provisioningEntitiesToDelete = 0;
+    int provisioningEntitiesInTargetNotGrouper = 0;
     
     List<GrouperProvisioningObjectMetadataItem> grouperProvisioningObjectMetadataItems = 
         this.grouperProvisioner.retrieveGrouperProvisioningObjectMetadata().getGrouperProvisioningObjectMetadataItems();
@@ -3846,13 +4064,13 @@ public class GrouperProvisioningLogic {
       if (grouperProvisioningEntity == null && gcGrouperSyncMember != null) {
         
         memberIdToEntityWrapperToDelete.put(gcGrouperSyncMember.getMemberId(), provisioningEntityWrapper);
-        provisioningEntitiesToDelete++;
+        provisioningEntitiesInTargetNotGrouper++;
         continue;
       }
       if (this.grouperProvisioner.retrieveGrouperProvisioningConfiguration().isUnresolvableSubjectsRemove() && provisioningEntityWrapper.getProvisioningStateEntity().isUnresolvable()) {
         
         memberIdToEntityWrapperToDelete.put(gcGrouperSyncMember.getMemberId(), provisioningEntityWrapper);
-        provisioningEntitiesToDelete++;
+        provisioningEntitiesInTargetNotGrouper++;
         continue;
       }
     }
@@ -3942,8 +4160,8 @@ public class GrouperProvisioningLogic {
       
     }
         
-    if (provisioningEntitiesToDelete > 0) {
-      this.getGrouperProvisioner().getDebugMap().put("provisioningEntitiesToDelete", provisioningEntitiesToDelete);
+    if (provisioningEntitiesInTargetNotGrouper > 0) {
+      this.getGrouperProvisioner().getDebugMap().put("provisioningEntitiesInTargetNotGrouper", provisioningEntitiesInTargetNotGrouper);
     }
   
   }
@@ -3956,7 +4174,7 @@ public class GrouperProvisioningLogic {
   
     Map<String, ProvisioningGroupWrapper> groupUuidToProvisioningGroupWrapper = this.getGrouperProvisioner().retrieveGrouperProvisioningDataIndex().getGroupUuidToProvisioningGroupWrapper();
     
-    int provisioningGroupsToDeleteCount = 0;
+    int provisioningGroupsInTargetNotGrouper = 0;
   
     List<GrouperProvisioningObjectMetadataItem> grouperProvisioningObjectMetadataItems = 
         this.grouperProvisioner.retrieveGrouperProvisioningObjectMetadata().getGrouperProvisioningObjectMetadataItems();
@@ -3975,7 +4193,7 @@ public class GrouperProvisioningLogic {
       GcGrouperSyncGroup gcGrouperSyncGroup = provisioningGroupWrapper.getGcGrouperSyncGroup();
       if (grouperProvisioningGroup == null && gcGrouperSyncGroup != null) {
         
-        provisioningGroupsToDeleteCount++;
+        provisioningGroupsInTargetNotGrouper++;
         
         // create a provisioning group to delete
         grouperProvisioningGroup = new ProvisioningGroup(true);
@@ -4019,8 +4237,8 @@ public class GrouperProvisioningLogic {
       }
       
     }
-    if (provisioningGroupsToDeleteCount > 0) {
-      GrouperUtil.mapAddValue(this.getGrouperProvisioner().getDebugMap(), "provisioningGroupsToDeleteCount", provisioningGroupsToDeleteCount);
+    if (provisioningGroupsInTargetNotGrouper > 0) {
+      GrouperUtil.mapAddValue(this.getGrouperProvisioner().getDebugMap(), "provisioningGroupsInTargetNotGrouper", provisioningGroupsInTargetNotGrouper);
     }
   
   }
@@ -4036,7 +4254,7 @@ public class GrouperProvisioningLogic {
 
     Map<MultiKey, ProvisioningMembershipWrapper> groupUuidMemberUuidToProvisioningMembershipWrapper = this.getGrouperProvisioner().retrieveGrouperProvisioningDataIndex().getGroupUuidMemberUuidToProvisioningMembershipWrapper();
 
-    int provisioningMshipsToDelete = 0;
+    int provisioningMshipsInTargetNotGrouper = 0;
     
     // loop through sync groups
     for (ProvisioningMembershipWrapper provisioningMembershipWrapper : this.getGrouperProvisioner().retrieveGrouperProvisioningData().getProvisioningMembershipWrappers()) {
@@ -4047,7 +4265,7 @@ public class GrouperProvisioningLogic {
 
       if (grouperProvisioningMembership == null && gcGrouperSyncMembership != null) {
 
-        provisioningMshipsToDelete++;
+        provisioningMshipsInTargetNotGrouper++;
         
         ProvisioningGroupWrapper provisioningGroupWrapper = gcGrouperSyncGroupIdToProvisioningGroupWrapper.get(gcGrouperSyncMembership.getGrouperSyncGroupId());
         if (provisioningGroupWrapper == null) {
@@ -4105,7 +4323,7 @@ public class GrouperProvisioningLogic {
         
       } else if (provisioningMembershipWrapper.getProvisioningEntityWrapper() != null && provisioningMembershipWrapper.getProvisioningEntityWrapper().getProvisioningStateEntity().isUnresolvable()
           && this.grouperProvisioner.retrieveGrouperProvisioningConfiguration().isUnresolvableSubjectsRemove()) {
-        provisioningMshipsToDelete++;
+        provisioningMshipsInTargetNotGrouper++;
         provisioningMembershipWrapper.getProvisioningStateMembership().setDelete(true);
         
       }
@@ -4117,8 +4335,8 @@ public class GrouperProvisioningLogic {
       }
       
     }      
-    if (provisioningMshipsToDelete > 0) {
-      this.getGrouperProvisioner().getDebugMap().put("provisioningMshipsToDelete", provisioningMshipsToDelete);
+    if (provisioningMshipsInTargetNotGrouper > 0) {
+      this.getGrouperProvisioner().getDebugMap().put("provisioningMshipsInTargetNotGrouper", provisioningMshipsInTargetNotGrouper);
     }
     
     

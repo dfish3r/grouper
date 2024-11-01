@@ -23,6 +23,8 @@ import edu.internet2.middleware.grouperClient.jdbc.tableSync.GcGrouperSyncErrorC
 
 public abstract class ProvisioningUpdatable {
 
+  public abstract String toString(boolean includeDataActions);
+  
   public Map<String, ProvisioningAttribute> retrieveAttributes() {
     Map<String, ProvisioningAttribute> result = new HashMap<>();
     for (String attributeName : this.attributeNameToIndex.keySet()) {
@@ -981,7 +983,7 @@ public abstract class ProvisioningUpdatable {
     }
   }
  
-  protected boolean toStringProvisioningUpdatable(StringBuilder result, boolean firstField) {
+  protected boolean toStringProvisioningUpdatable(StringBuilder result, boolean firstField, boolean includeObjectChanges) {
     firstField = toStringAppendField(result, firstField, "matchingAttrs", this.matchingIdAttributeNameToValues);
     
     // generally we dont need to print these...
@@ -1022,32 +1024,168 @@ public abstract class ProvisioningUpdatable {
     if (GrouperUtil.length(this.internal_objectChanges) > 0) {
       int changeCount = 0;
       
-      for (ProvisioningObjectChange provisioningObjectChange : this.internal_objectChanges) {
-        
-        if (changeCount++ > 100) {
-          result.append(", Only first 100/" + GrouperUtil.length(this.internal_objectChanges) + " object changes displayed");
+      for (String attributeName : this.retrieveAttributes().keySet()) {
+        int inserts = 0;
+        int deletes = 0;
+        int updates = 0;
+        for (ProvisioningObjectChange provisioningObjectChange : this.internal_objectChanges) {
+          
+          if (!StringUtils.equals(attributeName, provisioningObjectChange.getAttributeName())) {
+            continue;
+          }
+          
+          switch(provisioningObjectChange.getProvisioningObjectChangeAction()) {
+            case insert:
+              inserts++;
+              break;
+            case delete:
+              deletes++;
+              break;
+            case update:
+              updates++;
+              break;
+          }
+        }
+        if (inserts + updates + deletes > 0) {
+          result.append(", (").append(attributeName).append(": ");
+          boolean printedOne = false;
+          if (inserts > 0) {
+            result.append("ins: " + inserts);
+            printedOne = true;
+          }
+          if (updates > 0) {
+            if (printedOne) {
+              result.append(", ");
+              printedOne = true;
+            }
+            result.append("upd: " + updates);
+          }
+          if (deletes > 0) {
+            if (printedOne) {
+              result.append(", ");
+              printedOne = true;
+            }
+            result.append("del: " + deletes);
+            
+            if (this instanceof ProvisioningEntity) {
+              ProvisioningEntity provisioningEntity = (ProvisioningEntity)this;
+
+              GrouperProvisioningConfigurationAttribute grouperProvisioningConfigurationAttribute = this.getGrouperProvisioner()
+                  .retrieveGrouperProvisioningConfiguration().getTargetEntityAttributeNameToConfig().get(attributeName);
+              
+              if (this.getGrouperProvisioner().retrieveGrouperProvisioningBehavior().getGrouperProvisioningBehaviorMembershipType() == GrouperProvisioningBehaviorMembershipType.entityAttributes
+                  && StringUtils.equals(this.getGrouperProvisioner().retrieveGrouperProvisioningConfiguration().getAttributeNameForMemberships(), attributeName)
+                  && grouperProvisioningConfigurationAttribute.isMultiValued()) {
+
+                if (provisioningEntity.getProvisioningEntityWrapper() != null && provisioningEntity.getProvisioningEntityWrapper().getProvisioningStateEntity().isRecalcEntityMemberships()) {
+                  int targetSize = 0;
+                  if (provisioningEntity.getProvisioningEntityWrapper().getTargetProvisioningEntity() != null) {
+                    Set<?> targetAttributeSet = provisioningEntity.getProvisioningEntityWrapper().getTargetProvisioningEntity().retrieveAttributeValueSet(attributeName);
+                    targetSize = GrouperUtil.length(targetAttributeSet);
+                    if (targetSize >= deletes) {
+
+                      float percent = (float)deletes / targetSize;
+                      percent*=100;
+                      result.append(" [").append(Math.round(percent)).append("%] ");
+
+                    }
+                  }
+                }
+                
+              }
+              
+            }
+            if (this instanceof ProvisioningGroup) {
+              ProvisioningGroup provisioningGroup = (ProvisioningGroup)this;
+
+              GrouperProvisioningConfigurationAttribute grouperProvisioningConfigurationAttribute = this.getGrouperProvisioner()
+                  .retrieveGrouperProvisioningConfiguration().getTargetGroupAttributeNameToConfig().get(attributeName);
+              
+              if (this.getGrouperProvisioner().retrieveGrouperProvisioningBehavior().getGrouperProvisioningBehaviorMembershipType() == GrouperProvisioningBehaviorMembershipType.groupAttributes
+                  && StringUtils.equals(this.getGrouperProvisioner().retrieveGrouperProvisioningConfiguration().getAttributeNameForMemberships(), attributeName)
+                  && grouperProvisioningConfigurationAttribute.isMultiValued()) {
+
+                if (provisioningGroup.getProvisioningGroupWrapper() != null && provisioningGroup.getProvisioningGroupWrapper().getProvisioningStateGroup().isRecalcGroupMemberships()) {
+                  int targetSize = 0;
+                  if (provisioningGroup.getProvisioningGroupWrapper().getTargetProvisioningGroup() != null) {
+                    Set<?> targetAttributeSet = provisioningGroup.getProvisioningGroupWrapper().getTargetProvisioningGroup().retrieveAttributeValueSet(attributeName);
+                    targetSize = GrouperUtil.length(targetAttributeSet);
+                    if (targetSize >= deletes) {
+
+                      float percent = (float)deletes / targetSize;
+                      percent*=100;
+                      result.append(" [").append(Math.round(percent)).append("%] ");
+
+                    }
+                  }
+                }
+                
+              }
+            }
+          }
+          
+          result.append(")");
+        }
+      }
+      Set<String> matchesLogValues = null;
+      if (this instanceof ProvisioningEntity) {
+        matchesLogValues = this.getGrouperProvisioner().retrieveGrouperProvisioningConfiguration().getLogAllObjectsVerboseForTheseGroupNames();
+      }
+      if (this instanceof ProvisioningGroup) {
+        matchesLogValues = this.getGrouperProvisioner().retrieveGrouperProvisioningConfiguration().getLogAllObjectsVerboseForTheseSubjectIds();
+      }
+      
+      OUTER: for (boolean matchesLog : new boolean[] {GrouperUtil.length(matchesLogValues) > 0, false}) {
+        if (!includeObjectChanges) {
           break;
         }
+        for (ProvisioningObjectChange provisioningObjectChange : this.internal_objectChanges) {
 
-        if (!firstField) {
-          result.append(", ");
-        } else {
-          firstField = false;
-        }
-
-        result.append(provisioningObjectChange.getProvisioningObjectChangeAction().name().substring(0, 3)).append(" ").append(provisioningObjectChange.getAttributeName()).append(" ");
-        switch(provisioningObjectChange.getProvisioningObjectChangeAction()) {
-          case insert:
-            result.append(stringValueWithType(provisioningObjectChange.getNewValue()));
-            break;
-          case delete:
-            result.append(stringValueWithType(provisioningObjectChange.getOldValue()));
-            break;
-          case update:
-            result.append(stringValueWithType(provisioningObjectChange.getOldValue()));
-            result.append(" -> ");
-            result.append(stringValueWithType(provisioningObjectChange.getNewValue()));
-            break;
+          if (matchesLog) {
+            boolean hasOldValue = !GrouperUtil.isBlank(provisioningObjectChange.getOldValue());
+            boolean hasNewValue = !GrouperUtil.isBlank(provisioningObjectChange.getNewValue());
+            
+            if (!hasNewValue && !hasOldValue) {
+              continue;
+            }
+            boolean logThis = false;
+            
+            if (hasNewValue && matchesLogValues.contains(GrouperUtil.stringValue(provisioningObjectChange.getNewValue()))) {
+              logThis = true;
+            }
+            if (hasOldValue && matchesLogValues.contains(GrouperUtil.stringValue(provisioningObjectChange.getOldValue()))) {
+              logThis = true;
+            }
+            if (!logThis) {
+              continue;
+            }
+          }
+          
+          if (changeCount++ > 100) {
+            result.append(", Only first 100/" + GrouperUtil.length(this.internal_objectChanges) + " object changes displayed");
+            break OUTER;
+          }
+  
+          if (!firstField) {
+            result.append(", ");
+          } else {
+            firstField = false;
+          }
+  
+          result.append(provisioningObjectChange.getProvisioningObjectChangeAction().name().substring(0, 3)).append(" ").append(provisioningObjectChange.getAttributeName()).append(" ");
+          switch(provisioningObjectChange.getProvisioningObjectChangeAction()) {
+            case insert:
+              result.append(stringValueWithType(provisioningObjectChange.getNewValue()));
+              break;
+            case delete:
+              result.append(stringValueWithType(provisioningObjectChange.getOldValue()));
+              break;
+            case update:
+              result.append(stringValueWithType(provisioningObjectChange.getOldValue()));
+              result.append(" -> ");
+              result.append(stringValueWithType(provisioningObjectChange.getNewValue()));
+              break;
+          }
         }
       }
     }
@@ -1068,7 +1206,7 @@ public abstract class ProvisioningUpdatable {
    * @param fieldValue
    * @return
    */
-  protected static boolean toStringAppendField(StringBuilder result, boolean firstField, String fieldName, Object fieldValue, boolean appendIfEmpty) {
+  protected boolean toStringAppendField(StringBuilder result, boolean firstField, String fieldName, Object fieldValue, boolean appendIfEmpty) {
     if (!appendIfEmpty && (fieldValue == null || GrouperUtil.length(fieldValue) == 0)) {
       return firstField;
     }
@@ -1088,19 +1226,40 @@ public abstract class ProvisioningUpdatable {
     }
     
     if (fieldValue instanceof Collection) {
+      
+      Set<String> matchesLogValues = null;
+      if (this instanceof ProvisioningEntity) {
+        matchesLogValues = this.getGrouperProvisioner().retrieveGrouperProvisioningConfiguration().getLogAllObjectsVerboseForTheseGroupNames();
+      }
+      if (this instanceof ProvisioningGroup) {
+        matchesLogValues = this.getGrouperProvisioner().retrieveGrouperProvisioningConfiguration().getLogAllObjectsVerboseForTheseSubjectIds();
+      }
+
       int resultInitialLength = result.length();
       int index = 0;
       result.append(fieldValue.getClass().getSimpleName()).append("(").append(GrouperUtil.length(fieldValue)).append("): ");
-      for (Object item : (Collection)fieldValue) {
-        if (index > 0) {
-          result.append(", ");
+      Set<Object> loggedAlready = new HashSet<Object>();
+      OUTER: for (boolean matchesLog : new boolean[] {GrouperUtil.length(matchesLogValues) > 0, false}) {
+        for (Object item : (Collection)fieldValue) {
+          if (loggedAlready.contains(item)) {
+            continue;
+          }
+          if (matchesLog) {
+            if (GrouperUtil.isBlank(item) || !matchesLogValues.contains(GrouperUtil.stringValue(item))) {
+              continue;
+            }
+          }
+          loggedAlready.add(item);
+          if (index > 0) {
+            result.append(", ");
+          }
+          result.append("[").append(index).append("]: ").append(GrouperUtil.stringValue(item));
+          if (result.length() - resultInitialLength > 1000) {
+            result.append("...");
+            break OUTER;
+          }
+          index++;
         }
-        result.append("[").append(index).append("]: ").append(GrouperUtil.stringValue(item));
-        if (result.length() - resultInitialLength > 1000) {
-          result.append("...");
-          break;
-        }
-        index++;
       }
     } else {
       result.append(stringValueWithType(fieldValue));

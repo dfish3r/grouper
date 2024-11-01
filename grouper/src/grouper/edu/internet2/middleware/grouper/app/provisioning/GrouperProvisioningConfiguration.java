@@ -80,15 +80,36 @@ public abstract class GrouperProvisioningConfiguration {
   }
 
   /**
+   * log information about these groups are in these group attributes
+   */
+  private Set<String> logAllObjectsVerboseGroupAttributes = new HashSet<String>();
+
+  /**
+   * log information about these entities are in these entity attributes
+   */
+  private Set<String> logAllObjectsVerboseEntityAttributes = new HashSet<String>();
+  
+  /**
+   * log information about these groups are in these group attributes
+   * @return
+   */
+  public Set<String> getLogAllObjectsVerboseGroupAttributes() {
+    return logAllObjectsVerboseGroupAttributes;
+  }
+
+  /**
+   * log information about these entities are in these entity attributes
+   * @return
+   */
+  public Set<String> getLogAllObjectsVerboseEntityAttributes() {
+    return logAllObjectsVerboseEntityAttributes;
+  }
+
+  /**
    * log information about these group names (comma separated less than 10)
    */
   private Set<String> logAllObjectsVerboseForTheseGroupNames = new HashSet<String>();
-
-// grouper-loader.base.properties 3090
-//  # If the group requires members then if there are no members it is not valid and could be deleted
-//  # {valueType: "boolean", subSection: "advanced", defaultValue: "false", order: 113000, showEl: "${showAdvanced}"}
-//  # provisioner.genericProvisioner.groupsRequireMembers =
-
+  
   /**
    * thread pool size
    * @return thread pool size
@@ -1013,6 +1034,43 @@ public abstract class GrouperProvisioningConfiguration {
     return true;
   }
   
+  private boolean runLogicInIncrementalDaemon = true;
+  
+  private boolean runLogicInFullDaemon = true;
+  
+  private boolean logCompareCalculations = false;
+  
+  
+  
+  
+  public boolean isLogCompareCalculations() {
+    return logCompareCalculations;
+  }
+
+  
+  public void setLogCompareCalculations(boolean logCompareCalculations) {
+    this.logCompareCalculations = logCompareCalculations;
+  }
+
+  public boolean isRunLogicInIncrementalDaemon() {
+    return runLogicInIncrementalDaemon;
+  }
+
+  
+  public void setRunLogicInIncrementalDaemon(boolean runLogicInIncrementalDaemon) {
+    this.runLogicInIncrementalDaemon = runLogicInIncrementalDaemon;
+  }
+
+  
+  public boolean isRunLogicInFullDaemon() {
+    return runLogicInFullDaemon;
+  }
+
+  
+  public void setRunLogicInFullDaemon(boolean runLogicInFullDaemon) {
+    this.runLogicInFullDaemon = runLogicInFullDaemon;
+  }
+
   private boolean readOnly;
   
   
@@ -1117,6 +1175,17 @@ public abstract class GrouperProvisioningConfiguration {
   
   public void setLogCommandsAlways(boolean logCommandsAlways) {
     this.logCommandsAlways = logCommandsAlways;
+  }
+
+  private int logAllObjectsVerboseCount;
+  
+  public int getLogAllObjectsVerboseCount() {
+    return logAllObjectsVerboseCount;
+  }
+
+  
+  public void setLogAllObjectsVerboseCount(int logAllObjectsVerboseCount) {
+    this.logAllObjectsVerboseCount = logAllObjectsVerboseCount;
   }
 
   private int logMaxErrorsPerType;
@@ -2776,6 +2845,9 @@ public abstract class GrouperProvisioningConfiguration {
     this.logAllObjectsVerboseForTheseGroupNames = GrouperUtil.nonNull(GrouperUtil.splitTrimToSet(this.retrieveConfigString("logAllObjectsVerboseForTheseGroupNames", false), ","));
     this.logAllObjectsVerboseForTheseSubjectIds = GrouperUtil.nonNull(GrouperUtil.splitTrimToSet(this.retrieveConfigString("logAllObjectsVerboseForTheseSubjectIds", false), ","));
 
+    this.logAllObjectsVerboseEntityAttributes = GrouperUtil.nonNull(GrouperUtil.splitTrimToSet(this.retrieveConfigString("logAllObjectsVerboseEntityAttributes", false), ","));
+    this.logAllObjectsVerboseGroupAttributes = GrouperUtil.nonNull(GrouperUtil.splitTrimToSet(this.retrieveConfigString("logAllObjectsVerboseGroupAttributes", false), ","));
+    
     if (GrouperUtil.length(this.logAllObjectsVerboseForTheseGroupNames) > 0 
         || GrouperUtil.length(this.logAllObjectsVerboseForTheseSubjectIds) > 0 ) {
       this.logCertainObjects = true;
@@ -2790,6 +2862,10 @@ public abstract class GrouperProvisioningConfiguration {
     this.logCommandsOnError = GrouperUtil.defaultIfNull(this.retrieveConfigBoolean("logCommandsOnError", false), false);
     
     this.logMaxErrorsPerType = GrouperUtil.intValue(this.retrieveConfigInt("logMaxErrorsPerType", false), 10);
+    
+    this.logCompareCalculations = GrouperUtil.defaultIfNull(this.retrieveConfigBoolean("logCompareCalculations", false), false);
+    
+    this.logAllObjectsVerboseCount = GrouperUtil.intValue(this.retrieveConfigInt("logAllObjectsVerboseCount", false), 10);
     
     this.debugLog = GrouperUtil.defaultIfNull(this.retrieveConfigBoolean("debugLog", false), false);
     
@@ -3227,6 +3303,9 @@ public abstract class GrouperProvisioningConfiguration {
     }
     
     this.readOnly = GrouperUtil.booleanValue(this.retrieveConfigBoolean("readOnly", false), false);
+
+    this.runLogicInIncrementalDaemon = GrouperUtil.booleanValue(this.retrieveConfigBoolean("runLogicInIncrementalDaemon", false), true);
+    this.runLogicInFullDaemon = GrouperUtil.booleanValue(this.retrieveConfigBoolean("runLogicInFullDaemon", false), true);
 
     {
       String grouperProvisioningMembershipFieldTypeString = this.retrieveConfigString("membershipFields", false);

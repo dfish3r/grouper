@@ -24,26 +24,36 @@ public class ProvisioningMembership extends ProvisioningUpdatable {
         : GrouperProvisioner.retrieveCurrentGrouperProvisioner().retrieveGrouperProvisioningBehavior().getAttributeNameToIndexTargetMembership()));
   }
   
-  public boolean isLoggableHelper() {
-    if (this.provisioningEntity != null) {
-      if (this.provisioningEntity.isLoggable()) {
-        return true;
-      }
+  public boolean isLoggableHelper(boolean strong) {
+    
+    boolean entityMatches = false;
+    
+    if (this.provisioningEntity != null && this.provisioningEntity.isLoggable(strong)) {
+      entityMatches = true;
     }
+
+    if (strong && !entityMatches) {
+      return false;
+    }
+    if (!strong && entityMatches) {
+      return true;
+    }
+    
     if (this.provisioningGroup != null) {
-      if (this.provisioningGroup.isLoggable()) {
+      if (this.provisioningGroup.isLoggable(strong)) {
         return true;
       }
     }
     return false;
+  
   }
   
-  public boolean isLoggable() {
+  public boolean isLoggable(boolean strong) {
     ProvisioningMembershipWrapper provisioningMembershipWrapper = this.getProvisioningMembershipWrapper();
     if (provisioningMembershipWrapper != null) {
-      return provisioningMembershipWrapper.getProvisioningStateMembership().isLoggable();
+      return provisioningMembershipWrapper.getProvisioningStateMembership().isLoggable(strong);
     }
-    return isLoggableHelper();
+    return isLoggableHelper(strong);
   }
 
   /**
@@ -311,6 +321,10 @@ public class ProvisioningMembership extends ProvisioningUpdatable {
   }
 
   public String toString() {
+    return toString(true);
+    
+  }
+  public String toString(boolean includeDataChanges) {
     StringBuilder result = new StringBuilder("Mship(");
     boolean firstField = true;
     
@@ -339,7 +353,7 @@ public class ProvisioningMembership extends ProvisioningUpdatable {
     
     firstField = toStringAppendField(result, firstField, "groupId", this.provisioningGroupId);
     firstField = toStringAppendField(result, firstField, "entityId", this.provisioningEntityId);
-    firstField = this.toStringProvisioningUpdatable(result, firstField);
+    firstField = this.toStringProvisioningUpdatable(result, firstField, includeDataChanges);
     if (this.provisioningMembershipWrapper != null) {
 
       if (this.provisioningMembershipWrapper.getProvisioningStateMembership().getGrouperIncrementalDataAction() != null) {
