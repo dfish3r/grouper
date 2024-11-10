@@ -8,29 +8,35 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
-import edu.internet2.middleware.grouper.ext.org.apache.ddlutils.Platform;
-import edu.internet2.middleware.grouper.ext.org.apache.ddlutils.model.Database;
-import edu.internet2.middleware.grouper.ext.org.apache.ddlutils.platform.SqlBuilder;
 
 import edu.internet2.middleware.grouper.FieldFinder;
+import edu.internet2.middleware.grouper.Group;
+import edu.internet2.middleware.grouper.GroupFinder;
 import edu.internet2.middleware.grouper.GroupTypeFinder;
+import edu.internet2.middleware.grouper.GrouperSession;
 import edu.internet2.middleware.grouper.MemberFinder;
 import edu.internet2.middleware.grouper.app.gsh.GrouperShell;
 import edu.internet2.middleware.grouper.app.loader.GrouperLoaderConfig;
 import edu.internet2.middleware.grouper.app.loader.db.GrouperLoaderDb;
 import edu.internet2.middleware.grouper.app.loader.db.Hib3GrouperDdlWorker;
+import edu.internet2.middleware.grouper.app.upgradeTasks.UpgradeTasks;
 import edu.internet2.middleware.grouper.app.upgradeTasks.UpgradeTasksJob;
+import edu.internet2.middleware.grouper.attr.AttributeDef;
 import edu.internet2.middleware.grouper.audit.AuditTypeFinder;
 import edu.internet2.middleware.grouper.cache.EhcacheController;
-import edu.internet2.middleware.grouper.cache.GrouperCache;
 import edu.internet2.middleware.grouper.cache.GrouperCacheDatabase;
 import edu.internet2.middleware.grouper.cfg.GrouperConfig;
 import edu.internet2.middleware.grouper.cfg.GrouperHibernateConfig;
 import edu.internet2.middleware.grouper.changeLog.ChangeLogTypeFinder;
 import edu.internet2.middleware.grouper.ddl.GrouperDdlUtils.DbMetadataBean;
+import edu.internet2.middleware.grouper.ext.org.apache.ddlutils.Platform;
+import edu.internet2.middleware.grouper.ext.org.apache.ddlutils.model.Database;
+import edu.internet2.middleware.grouper.ext.org.apache.ddlutils.platform.SqlBuilder;
 import edu.internet2.middleware.grouper.hibernate.HibernateSession;
 import edu.internet2.middleware.grouper.internal.dao.hib3.Hib3DAO;
 import edu.internet2.middleware.grouper.internal.util.GrouperUuid;
@@ -708,6 +714,8 @@ public class GrouperDdlEngine {
     GrouperDdl2_5.addDdlWorkerTableViaScript(runScript);
   }
   
+  public static boolean installedGrouperFromScratchWithRunScript = false;
+  
   /**
    * return if up to date
    * @return true if up to date
@@ -821,6 +829,9 @@ public class GrouperDdlEngine {
           resources.add("ddl/GrouperDdl_" + objectName + "_install_" + scriptOverrideDatabase + ".sql");
           fromVersions.add(0);
           toVersions.add(javaVersion);
+          if (StringUtils.equals("Grouper", objectName)) {
+            installedGrouperFromScratchWithRunScript = runScript;
+          }  
         } else if ("Grouper".equals(objectName) && dbVersion >= 29) {
           for (int i=dbVersion;i<javaVersion;i++) {
             resources.add("ddl/GrouperDdl_" + objectName + "_" + i + "_upgradeTo_" + (i+1) 
@@ -847,14 +858,9 @@ public class GrouperDdlEngine {
       if (!didSomething || script.length() == 0) {
         return true;
       }
-      GrouperDdlUtils.runScriptIfShouldAndPrintOutput(script.toString(), runScript);
-      try {
-        // see if there are upgrade tasks to run
-        UpgradeTasksJob.runDaemonStandalone();
-      } catch (Exception e) {
-        LOG.debug("Could not run upgrade tasks, maybe this is expected if the tables arent there", e);
-      }
       
+      GrouperDdlUtils.runScriptIfShouldAndPrintOutput(script.toString(), runScript);
+      installedGrouperFromScratchWithRunScript = installedGrouperFromScratchWithRunScript && runScript;
       return runScript;
     } finally {
       GrouperDdlUtils.insideBootstrap = false;
@@ -869,6 +875,92 @@ public class GrouperDdlEngine {
 
     }
 
+  }
+  
+  public void runUpgradeTasks() {
+    
+    boolean workToDo = UpgradeTasksJob.isThereWorkToDo(null);
+    if (!workToDo) {
+      return;
+    }
+    
+    this.done = false;
+    GrouperDdlUtils.insideBootstrap = true;
+    
+    Boolean hasResult = waitForOtherJvmsOrLockInDatabase();
+    if (hasResult != null) {
+      // some other jvm is going to run upgrade tasks
+      workToDo = UpgradeTasksJob.isThereWorkToDo(null);
+      if (workToDo) {
+        throw new RuntimeException("There are upgrade tasks to do that should have been done automatically but weren't run for some reason!!");
+      }
+      
+      
+      return;
+    }
+    
+    
+    if (installedGrouperFromScratchWithRunScript) {
+      // go over all upgrade task enum numbers in increasing order and 
+      // store them in the upgrade metadata group attribute
+      
+      int highestEnumVersion = UpgradeTasks.currentVersion();
+      
+      String groupName = UpgradeTasksJob.grouperUpgradeTasksStemName() + ":" + UpgradeTasksJob.UPGRADE_TASKS_METADATA_GROUP;
+      Group group = GroupFinder.findByName(GrouperSession.staticGrouperSession(), groupName, true);
+      String upgradeTasksVersionName = UpgradeTasksJob.grouperUpgradeTasksStemName() + ":" + UpgradeTasksJob.UPGRADE_TASKS_VERSION_ATTR;
+      
+      Set<Integer> sortedVersions = new TreeSet<Integer>();
+      for (Integer version = 1; version <= highestEnumVersion; version++) {
+        
+          String enumName = "V" + version;
+          UpgradeTasks task = GrouperUtil.enumValueOfIgnoreCase(UpgradeTasks.class, enumName, false, false);
+          if (task != null ) {    
+            sortedVersions.add(version);
+          }
+      }
+      
+      for (Integer sortedVersion: sortedVersions) {
+        group.getAttributeValueDelegate().addValue(upgradeTasksVersionName, "" + sortedVersion);
+      }
+    }
+    
+    AttributeDef upgradeTasksAttributeDef = UpgradeTasksJob.grouperUpgradeTasksAttributeDef();
+    if (!upgradeTasksAttributeDef.isMultiValued()) {
+      int currentDbVersion = UpgradeTasksJob.getDBVersion();
+      upgradeTasksAttributeDef.setMultiValued(true);
+      upgradeTasksAttributeDef.store();
+      
+      String groupName = UpgradeTasksJob.grouperUpgradeTasksStemName() + ":" + UpgradeTasksJob.UPGRADE_TASKS_METADATA_GROUP;
+      Group group = GroupFinder.findByName(GrouperSession.staticGrouperSession(), groupName, true);
+      String upgradeTasksVersionName = UpgradeTasksJob.grouperUpgradeTasksStemName() + ":" + UpgradeTasksJob.UPGRADE_TASKS_VERSION_ATTR;
+      
+      for (int i=1; i < currentDbVersion; i++) {
+        if (i > 9) {
+          break;
+        }
+        group.getAttributeValueDelegate().addValue(upgradeTasksVersionName, "" + i);
+      }
+    }
+    
+    try {
+      // see if there are upgrade tasks to run
+      UpgradeTasksJob.runDaemonStandalone();
+    } catch (Exception e) {
+      LOG.debug("Could not run upgrade tasks, maybe this is expected if the tables arent there", e);
+    } finally {
+      GrouperDdlUtils.insideBootstrap = false;
+      
+      // tell the heartbeat we are done
+      this.done=true;
+      
+      // wait for the heartbeat to return
+      if (heartbeatThread != null) {
+        GrouperUtil.threadJoin(heartbeatThread);
+      }
+
+    }
+    
   }
   
   /**
