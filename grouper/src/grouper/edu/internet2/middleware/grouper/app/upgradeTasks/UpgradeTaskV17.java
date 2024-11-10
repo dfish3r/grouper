@@ -4,6 +4,27 @@ import edu.internet2.middleware.grouper.app.loader.OtherJobBase.OtherJobInput;
 import edu.internet2.middleware.grouperClient.jdbc.GcDbAccess;
 
 public class UpgradeTaskV17 implements UpgradeTasksInterface {
+  
+  @Override
+  public boolean doesUpgradeTaskHaveDdlWorkToDo() {
+    
+    Integer nullValues = new GcDbAccess().sql("select count(1) from grouper_pit_groups pg where pg.source_internal_id is null and pg.active='T'").select(int.class);
+    if (nullValues != null && nullValues > 0) {
+      return true;
+    }
+    
+    nullValues = new GcDbAccess().sql("select count(1) from grouper_pit_fields pf where pf.source_internal_id is null and pf.active='T'").select(int.class);
+    if (nullValues != null && nullValues > 0) {
+      return true;
+    }
+    
+    nullValues = new GcDbAccess().sql("select count(1) from grouper_pit_members pm where pm.source_internal_id is null and pm.active='T'").select(int.class);
+    if (nullValues != null && nullValues > 0) {
+      return true;
+    }
+    
+    return false;
+  }
 
   @Override
   public void updateVersionFromPrevious(OtherJobInput otherJobInput) {

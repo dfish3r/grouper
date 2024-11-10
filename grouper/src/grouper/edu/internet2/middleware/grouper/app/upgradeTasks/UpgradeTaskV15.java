@@ -8,6 +8,36 @@ import edu.internet2.middleware.grouper.util.GrouperUtil;
 import edu.internet2.middleware.grouperClient.jdbc.GcDbAccess;
 
 public class UpgradeTaskV15 implements UpgradeTasksInterface {
+  
+  
+
+  @Override
+  public boolean doesUpgradeTaskHaveDdlWorkToDo() {
+    
+    boolean groupsNullable = GrouperDdlUtils.isColumnNullable("grouper_groups", "internal_id", "name", GrouperCheckConfig.attributeRootStemName() + ":upgradeTasks:upgradeTasksMetadataGroup");
+    boolean fieldsNullable = GrouperDdlUtils.isColumnNullable("grouper_fields", "internal_id", "name", "admins");
+    
+    if (groupsNullable) {
+      return true;
+    }
+    
+    if (fieldsNullable) {
+      return true;
+    }
+   
+    if (GrouperDdlUtils.isOracle()) {
+      if (!GrouperDdlUtils.doesConstraintExistOracle("grouper_fie_internal_id_unq")) {
+        return true;
+      }
+      if (!GrouperDdlUtils.doesConstraintExistOracle("grouper_grp_internal_id_unq")) {
+        return true;
+      }
+      if (!GrouperDdlUtils.doesConstraintExistOracle("grouper_sql_cache_group1_fk")) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   @Override
   public void updateVersionFromPrevious(OtherJobInput otherJobInput) {

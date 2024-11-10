@@ -11,6 +11,35 @@ import edu.internet2.middleware.grouperClient.jdbc.GcDbAccess;
 
 public class UpgradeTaskV24 implements UpgradeTasksInterface {
   
+  
+  @Override
+  public boolean doesUpgradeTaskHaveDdlWorkToDo() {
+    return (boolean) GrouperSession.internal_callbackRootGrouperSession(new GrouperSessionHandler() {
+      
+      @Override
+      public Object callback(GrouperSession grouperSession) throws GrouperSessionException {
+        // convert grouper_sql_cache_mship.flattened_add_timestamp from timestamp/date to bigint/number
+
+        if (GrouperDdlUtils.assertColumnThere(true, "grouper_sql_cache_mship", "flattened_add_timestamp")) {
+          return true;
+        }
+        
+        if (!GrouperDdlUtils.assertTableThere(true, "grouper_sql_cache_mship_v")) {
+          return true;
+        }
+        
+        if (!GrouperDdlUtils.assertIndexExists("grouper_sql_cache_mship", "grouper_sql_cache_mship3_idx")) {
+          return true;
+        }
+        
+        if (GrouperDdlUtils.assertIndexExists("grouper_sql_cache_mship", "grouper_sql_cache_mship1_idx")) {       
+          return true;
+        }
+        return false;
+      }
+    });
+  }
+
   @Override
   public void updateVersionFromPrevious(OtherJobInput otherJobInput) {
     GrouperSession.internal_callbackRootGrouperSession(new GrouperSessionHandler() {

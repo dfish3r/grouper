@@ -11,6 +11,42 @@ import edu.internet2.middleware.grouperClient.jdbc.GcDbAccess;
 public class UpgradeTaskV22 implements UpgradeTasksInterface {
   
   @Override
+  public boolean doesUpgradeTaskHaveDdlWorkToDo() {
+    return (boolean) GrouperSession.internal_callbackRootGrouperSession(new GrouperSessionHandler() {
+      
+      @Override
+      public Object callback(GrouperSession grouperSession) throws GrouperSessionException {
+        
+        if (GrouperDdlUtils.assertTableThere(true, "grouper_pit_stems") && !GrouperDdlUtils.assertColumnThere(true, "grouper_pit_stems", "source_id_index")) {
+          return true;
+        }
+        
+        if (!GrouperDdlUtils.assertColumnThere(true, "grouper_pit_attribute_def", "source_id_index")) {
+         return true;
+        }
+        
+        if (!GrouperDdlUtils.assertIndexExists("grouper_pit_stems", "pit_stem_source_idindex_idx")) {
+         return true;
+        }
+        
+        if (!GrouperDdlUtils.assertIndexExists("grouper_pit_attribute_def", "pit_attrdef_source_idindex_idx")) {
+          return true;
+        }
+        
+        Integer count = new GcDbAccess().sql("select count(1) from grouper_pit_stems  ps where ps.source_id_index is null and ps.active='T'").select(int.class);
+        if (count != null && count > 0) {
+          return true;
+        }
+        count = new GcDbAccess().sql("select count(1) from grouper_pit_attribute_def  pad where pad.source_id_index is null and pad.active='T'").select(int.class);
+        if (count != null && count > 0) {
+          return true;
+        }
+        return false;
+      }
+    });
+  }
+
+  @Override
   public void updateVersionFromPrevious(OtherJobInput otherJobInput) {
     GrouperSession.internal_callbackRootGrouperSession(new GrouperSessionHandler() {
       

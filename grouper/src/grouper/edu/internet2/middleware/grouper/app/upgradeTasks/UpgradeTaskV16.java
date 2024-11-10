@@ -6,6 +6,16 @@ import edu.internet2.middleware.grouper.ddl.GrouperDdlUtils;
 import edu.internet2.middleware.grouperClient.jdbc.GcDbAccess;
 
 public class UpgradeTaskV16 implements UpgradeTasksInterface {
+  
+  @Override
+  public boolean doesUpgradeTaskHaveDdlWorkToDo() {
+    
+    if (GrouperDdlUtils.isColumnNullable("grouper_members", "internal_id", "subject_id", "GrouperSystem")) {
+      return true;
+    }
+    
+    return false;
+  }
 
   @Override
   public void updateVersionFromPrevious(OtherJobInput otherJobInput) {

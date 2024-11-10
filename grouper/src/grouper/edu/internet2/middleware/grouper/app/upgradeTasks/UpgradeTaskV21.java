@@ -11,6 +11,36 @@ public class UpgradeTaskV21 implements UpgradeTasksInterface {
   
   
   @Override
+  public boolean doesUpgradeTaskHaveDdlWorkToDo() {
+
+    return (boolean) GrouperSession.internal_callbackRootGrouperSession(new GrouperSessionHandler() {
+      
+      @Override
+      public Object callback(GrouperSession grouperSession) throws GrouperSessionException {
+        
+        if (GrouperDdlUtils.assertTableThere(true, "grouper_sql_cache_mship") && !GrouperDdlUtils.assertColumnThere(true, "grouper_sql_cache_group", "last_membership_sync")) {
+          return true;
+        }
+        
+        if (GrouperDdlUtils.assertIndexExists("grouper_sql_cache_mship", "grouper_sql_cache_mship2_idx")) {
+          return true;
+        }
+        
+        if (!GrouperDdlUtils.assertPrimaryKeyExists("grouper_sql_cache_mship")) {
+          return true;
+        }
+        
+        if (!GrouperDdlUtils.assertIndexExists("grouper_sql_cache_group", "grouper_sql_cache_group2_idx")) {
+          return true;
+        }
+        
+        return false;
+      }
+    });
+    
+  }
+
+  @Override
   public void updateVersionFromPrevious(OtherJobInput otherJobInput) {
     GrouperSession.internal_callbackRootGrouperSession(new GrouperSessionHandler() {
       
