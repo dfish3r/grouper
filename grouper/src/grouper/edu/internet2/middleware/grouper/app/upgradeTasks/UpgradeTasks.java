@@ -20,15 +20,9 @@ import java.util.Set;
 
 import org.apache.commons.logging.Log;
 
-import edu.internet2.middleware.grouper.GrouperSession;
 import edu.internet2.middleware.grouper.app.loader.OtherJobBase.OtherJobInput;
-import edu.internet2.middleware.grouper.ddl.DdlVersionable;
 import edu.internet2.middleware.grouper.ddl.GrouperDdlUtils;
-import edu.internet2.middleware.grouper.exception.GrouperSessionException;
-import edu.internet2.middleware.grouper.misc.GrouperSessionHandler;
-import edu.internet2.middleware.grouper.misc.GrouperVersion;
 import edu.internet2.middleware.grouper.util.GrouperUtil;
-import edu.internet2.middleware.grouperClient.jdbc.GcDbAccess;
 
 /**
  * @author shilen
@@ -194,6 +188,7 @@ public enum UpgradeTasks implements UpgradeTasksInterface {
     public boolean upgradeTaskIsDdl() {
       return true;
     }
+    
   },
   V9{
     
@@ -421,10 +416,6 @@ public enum UpgradeTasks implements UpgradeTasksInterface {
       currentVersion = max;
     }
     return currentVersion;
-  }
-  
-  public boolean requiresEmptyChangelog() {
-    return false;
   }
   
   public boolean doesUpgradeTaskHaveDdlWorkToDo() {
