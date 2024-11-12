@@ -190,6 +190,12 @@ public enum UpgradeTasks implements UpgradeTasksInterface {
     }
     
   },
+  V26 {
+    @Override
+    public void updateVersionFromPrevious(OtherJobInput otherJobInput) {
+      
+    }
+  },
   V9{
     
     @Override
