@@ -1689,10 +1689,12 @@ public class GrouperScim2ApiCommands {
       Set<String> entityIds = new HashSet<>();
       if (groupNode.has("members")) {
         ArrayNode membersNode = GrouperUtil.jsonJacksonGetArrayNode(groupNode, "members");
-        for (int membersIndex=0; membersIndex<membersNode.size(); membersIndex++) {
-          JsonNode singleMemberNode = membersNode.get(membersIndex);
-          String entityId = GrouperUtil.jsonJacksonGetString(singleMemberNode, "value");
-          entityIds.add(entityId);
+        if (membersNode != null) {
+          for (int membersIndex=0; membersIndex<membersNode.size(); membersIndex++) {
+            JsonNode singleMemberNode = membersNode.get(membersIndex);
+            String entityId = GrouperUtil.jsonJacksonGetString(singleMemberNode, "value");
+            entityIds.add(entityId);
+          }
         }
       }
       groupIdToMembershipEntityIds.put(grouperScimGroup.getId(), entityIds);
