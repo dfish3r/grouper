@@ -3065,4 +3065,35 @@ public class GrouperDdlUtils {
       GrouperUtil.closeQuietly(connection);
     }
   }
+  
+  public static boolean doesFunctionExistOracle(String functionName) {
+    if (!GrouperDdlUtils.isOracle()) {
+      throw new RuntimeException("Database not oracle!");
+    }
+    
+    GrouperLoaderDb grouperDb = GrouperLoaderConfig.retrieveDbProfile("grouper");
+    Connection connection = null;
+    PreparedStatement preparedStatement = null;
+    ResultSet resultSet = null;
+    try {
+      connection = grouperDb.connection();
+      preparedStatement = connection.prepareStatement("select count(*) as count from user_procedures where upper(object_name) = ?");
+      preparedStatement.setString(1, functionName.toUpperCase());
+      resultSet = preparedStatement.executeQuery();
+      resultSet.next();
+      int count = resultSet.getInt(1);
+      
+      if (count == 0) {
+        return false;
+      }
+      
+      return true;
+    } catch (SQLException e) {
+      throw new RuntimeException(e);
+    } finally {
+      GrouperUtil.closeQuietly(resultSet);
+      GrouperUtil.closeQuietly(preparedStatement);
+      GrouperUtil.closeQuietly(connection);
+    }
+  }
 }

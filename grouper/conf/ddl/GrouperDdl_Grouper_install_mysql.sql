@@ -2243,6 +2243,31 @@ CREATE TABLE grouper_sql_cache_mship_hst
 CREATE INDEX grouper_sql_cache_mshhst1_idx ON grouper_sql_cache_mship_hst (sql_cache_group_internal_id, end_time);
 CREATE INDEX grouper_sql_cache_mshhst2_idx ON grouper_sql_cache_mship_hst (sql_cache_group_internal_id, start_time, end_time);
 
+CREATE TABLE grouper_sql_cache_depend_type (
+  internal_id bigint NOT NULL,
+  dependency_category varchar(100) NOT NULL,
+  name varchar(100) NOT NULL,
+  description varchar(1024) NOT NULL,
+  PRIMARY KEY (internal_id)
+);
+
+CREATE UNIQUE INDEX grouper_sql_cache_deptype1_idx ON grouper_sql_cache_depend_type (dependency_category, name);
+
+CREATE TABLE grouper_sql_cache_dependency (
+  internal_id bigint NOT NULL,
+  dep_type_internal_id bigint NOT NULL,
+  owner_internal_id bigint NOT NULL,
+  dependent_internal_id bigint NOT NULL,
+  created_on bigint NOT NULL,
+  PRIMARY KEY (internal_id)
+);
+ 
+CREATE UNIQUE INDEX grouper_sql_cache_dep1_idx ON grouper_sql_cache_dependency (dep_type_internal_id, owner_internal_id, dependent_internal_id);
+CREATE INDEX grouper_sql_cache_dep2_idx ON grouper_sql_cache_dependency (owner_internal_id, dependent_internal_id);
+CREATE INDEX grouper_sql_cache_dep3_idx ON grouper_sql_cache_dependency (dependent_internal_id);
+ 
+ALTER TABLE grouper_sql_cache_dependency ADD CONSTRAINT grouper_sql_cache_dep_fk FOREIGN KEY (dep_type_internal_id) REFERENCES grouper_sql_cache_depend_type(internal_id);
+
 ALTER TABLE grouper_data_global_assign ADD CONSTRAINT grouper_data_global_assign_fk FOREIGN KEY (data_field_internal_id) REFERENCES grouper_data_field(internal_id);
 ALTER TABLE grouper_data_global_assign ADD CONSTRAINT grouper_data_global_diction_fk FOREIGN KEY (value_dictionary_internal_id) REFERENCES grouper_dictionary(internal_id);
 ALTER TABLE grouper_data_global_assign ADD CONSTRAINT grouper_data_global_prov_fk FOREIGN KEY (data_provider_internal_id) REFERENCES grouper_data_provider(internal_id);

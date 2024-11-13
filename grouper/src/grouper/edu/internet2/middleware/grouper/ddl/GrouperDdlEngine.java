@@ -480,6 +480,22 @@ public class GrouperDdlEngine {
         //result.append("\n-- end drop all tables \n\n");
       }
 
+      if ("Grouper".equals(objectName)) {
+        if (GrouperDdlUtils.isOracle()) {
+          if (GrouperDdlUtils.doesFunctionExistOracle("grouper_to_timestamp")) {
+            result.append("drop function grouper_to_timestamp;\n\n");
+          }
+          
+          if (GrouperDdlUtils.doesFunctionExistOracle("grouper_to_timestamp_utc")) {
+            result.append("drop function grouper_to_timestamp_utc;\n\n");
+          }
+        } else {
+          // if exists doesn't work on oracle 19
+          result.append("drop function if exists grouper_to_timestamp;\n\n");
+          result.append("drop function if exists grouper_to_timestamp_utc;\n\n");
+        }
+      }
+
       GrouperDdl.alreadyAddedTableIndices = false;
       
     }
