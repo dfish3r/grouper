@@ -914,33 +914,7 @@ public class GrouperDdlEngine {
       
       return;
     }
-    
-    
-    if (installedGrouperFromScratchWithRunScript) {
-      // go over all upgrade task enum numbers in increasing order and 
-      // store them in the upgrade metadata group attribute
-      
-      int highestEnumVersion = UpgradeTasks.currentVersion();
-      
-      String groupName = UpgradeTasksJob.grouperUpgradeTasksStemName() + ":" + UpgradeTasksJob.UPGRADE_TASKS_METADATA_GROUP;
-      Group group = GroupFinder.findByName(GrouperSession.staticGrouperSession(), groupName, true);
-      String upgradeTasksVersionName = UpgradeTasksJob.grouperUpgradeTasksStemName() + ":" + UpgradeTasksJob.UPGRADE_TASKS_VERSION_ATTR;
-      
-      Set<Integer> sortedVersions = new TreeSet<Integer>();
-      for (Integer version = 1; version <= highestEnumVersion; version++) {
         
-          String enumName = "V" + version;
-          UpgradeTasks task = GrouperUtil.enumValueOfIgnoreCase(UpgradeTasks.class, enumName, false, false);
-          if (task != null ) {    
-            sortedVersions.add(version);
-          }
-      }
-      
-      for (Integer sortedVersion: sortedVersions) {
-        group.getAttributeValueDelegate().addValue(upgradeTasksVersionName, "" + sortedVersion);
-      }
-    }
-    
     AttributeDef upgradeTasksAttributeDef = UpgradeTasksJob.grouperUpgradeTasksAttributeDef();
     if (!upgradeTasksAttributeDef.isMultiValued()) {
       int currentDbVersion = UpgradeTasksJob.getDBVersion();

@@ -211,6 +211,11 @@ public enum UpgradeTasks implements UpgradeTasksInterface {
     public boolean upgradeTaskIsDdl() {
       return true;
     }
+    
+    @Override
+    public boolean runOnNewInstall() {
+      return true;
+    }
   },
   V28 {
     @Override
