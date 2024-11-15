@@ -2903,7 +2903,14 @@ public enum GrouperDdl implements DdlVersionable {
         GrouperDdl5_14_0.addGrouperProvAdobeMembershipIndex(ddlVersionBean, database);
         GrouperDdl5_14_0.addGrouperProvAdobeMembershipComments(database, ddlVersionBean);
         
+        GrouperDdl5_14_0.addGrouperSqlCacheDependTypeTable(database, ddlVersionBean);
+        GrouperDdl5_14_0.addGrouperSqlCacheDependencyTable(database, ddlVersionBean);
         
+        GrouperDdl5_14_0.addGrouperSqlCacheDependTypeIndexes(ddlVersionBean, database);
+        GrouperDdl5_14_0.addGrouperSqlCacheDependencyIndexes(ddlVersionBean, database);
+        
+        GrouperDdl5_14_0.addGrouperSqlCacheDependTypeComments(database, ddlVersionBean);
+        GrouperDdl5_14_0.addGrouperSqlCacheDependencyComments(database, ddlVersionBean);
     }
   }
   //DON'T ADD ANY MORE Vs

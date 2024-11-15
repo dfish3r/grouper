@@ -58,6 +58,31 @@ public class GrouperDdl5_14_0 {
   public static final String COLUMN_GROUPER_PROV_ADOBE_MEMBERSHIP_USER_ID = "user_id";
   
   
+  public static final String TABLE_GROUPER_SQL_CACHE_DEPEND_TYPE = "grouper_sql_cache_depend_type";
+
+  public static final String COLUMN_GROUPER_SQL_CACHE_DEPEND_TYPE_INTERNAL_ID = "internal_id";
+
+  public static final String COLUMN_GROUPER_SQL_CACHE_DEPEND_TYPE_DEPENDENCY_CATEGORY = "dependency_category";
+
+  public static final String COLUMN_GROUPER_SQL_CACHE_DEPEND_TYPE_NAME = "name";
+  
+  public static final String COLUMN_GROUPER_SQL_CACHE_DEPEND_TYPE_DESCRIPTION = "description";
+
+  
+  public static final String TABLE_GROUPER_SQL_CACHE_DEPENDENCY = "grouper_sql_cache_dependency";
+
+  public static final String COLUMN_GROUPER_SQL_CACHE_DEPENDENCY_INTERNAL_ID = "internal_id";
+
+  public static final String COLUMN_GROUPER_SQL_CACHE_DEPENDENCY_DEP_TYPE_INTERNAL_ID = "dep_type_internal_id";
+
+  public static final String COLUMN_GROUPER_SQL_CACHE_DEPENDENCY_OWNER_INTERNAL_ID = "owner_internal_id";
+
+  public static final String COLUMN_GROUPER_SQL_CACHE_DEPENDENCY_DEPENDENT_INTERNAL_ID = "dependent_internal_id";
+
+  public static final String COLUMN_GROUPER_SQL_CACHE_DEPENDENCY_CREATED_ON = "created_on";
+  
+  
+  
   static void addGrouperProvAdobeUserComments(Database database, DdlVersionBean ddlVersionBean) {
     
     if (!GrouperDdl5_12_0.buildingToThisVersionAtLeast(ddlVersionBean)) {
@@ -380,4 +405,167 @@ public class GrouperDdl5_14_0 {
     
   }
   
+  static void addGrouperSqlCacheDependTypeTable(Database database, DdlVersionBean ddlVersionBean) {
+    
+    if (!GrouperDdl5_12_0.buildingToThisVersionAtLeast(ddlVersionBean)) {
+      return;
+    }
+  
+    if (ddlVersionBean.didWeDoThis("v5_14_0_addGrouperSqlCacheDependTypeTable", true)) {
+      return;
+    }
+    
+    final String tableName = TABLE_GROUPER_SQL_CACHE_DEPEND_TYPE;
+  
+    Table table = GrouperDdlUtils.ddlutilsFindOrCreateTable(database, tableName);
+  
+    GrouperDdlUtils.ddlutilsFindOrCreateColumn(table, COLUMN_GROUPER_SQL_CACHE_DEPEND_TYPE_INTERNAL_ID, Types.BIGINT, "20", true, true);
+    GrouperDdlUtils.ddlutilsFindOrCreateColumn(table, COLUMN_GROUPER_SQL_CACHE_DEPEND_TYPE_DEPENDENCY_CATEGORY, Types.VARCHAR, "100", false, true);    
+    GrouperDdlUtils.ddlutilsFindOrCreateColumn(table, COLUMN_GROUPER_SQL_CACHE_DEPEND_TYPE_NAME, Types.VARCHAR, "100", false, true);
+    GrouperDdlUtils.ddlutilsFindOrCreateColumn(table, COLUMN_GROUPER_SQL_CACHE_DEPEND_TYPE_DESCRIPTION, Types.VARCHAR, "1024", false, true);
+  }
+  
+  static void addGrouperSqlCacheDependencyTable(Database database, DdlVersionBean ddlVersionBean) {
+    
+    if (!GrouperDdl5_12_0.buildingToThisVersionAtLeast(ddlVersionBean)) {
+      return;
+    }
+  
+    if (ddlVersionBean.didWeDoThis("v5_14_0_addGrouperSqlCacheDependencyTable", true)) {
+      return;
+    }
+    
+    final String tableName = TABLE_GROUPER_SQL_CACHE_DEPENDENCY;
+  
+    Table table = GrouperDdlUtils.ddlutilsFindOrCreateTable(database, tableName);
+  
+    GrouperDdlUtils.ddlutilsFindOrCreateColumn(table, COLUMN_GROUPER_SQL_CACHE_DEPENDENCY_INTERNAL_ID, Types.BIGINT, "20", true, true);
+    GrouperDdlUtils.ddlutilsFindOrCreateColumn(table, COLUMN_GROUPER_SQL_CACHE_DEPENDENCY_DEP_TYPE_INTERNAL_ID, Types.BIGINT, "20", false, true);    
+    GrouperDdlUtils.ddlutilsFindOrCreateColumn(table, COLUMN_GROUPER_SQL_CACHE_DEPENDENCY_OWNER_INTERNAL_ID, Types.BIGINT, "20", false, true);
+    GrouperDdlUtils.ddlutilsFindOrCreateColumn(table, COLUMN_GROUPER_SQL_CACHE_DEPENDENCY_DEPENDENT_INTERNAL_ID, Types.BIGINT, "20", false, true);
+    GrouperDdlUtils.ddlutilsFindOrCreateColumn(table, COLUMN_GROUPER_SQL_CACHE_DEPENDENCY_CREATED_ON, Types.BIGINT, "20", false, true);
+    
+    GrouperDdlUtils.ddlutilsFindOrCreateForeignKey(database, table.getName(), 
+        "grouper_sql_cache_dep_fk", TABLE_GROUPER_SQL_CACHE_DEPEND_TYPE,
+        GrouperUtil.toList(COLUMN_GROUPER_SQL_CACHE_DEPENDENCY_DEP_TYPE_INTERNAL_ID), GrouperUtil.toList(COLUMN_GROUPER_SQL_CACHE_DEPEND_TYPE_INTERNAL_ID));
+  }
+  
+  static void addGrouperSqlCacheDependTypeIndexes(DdlVersionBean ddlVersionBean, Database database) {
+    if (!GrouperDdl5_12_0.buildingToThisVersionAtLeast(ddlVersionBean)) {
+      return;
+    }
+    
+    if (ddlVersionBean.didWeDoThis("v5_14_0_addGrouperSqlCacheDependTypeIndexes", true)) {
+      return;
+    }
+  
+    Table table = GrouperDdlUtils.ddlutilsFindOrCreateTable(database, TABLE_GROUPER_SQL_CACHE_DEPEND_TYPE);
+    
+    GrouperDdlUtils.ddlutilsFindOrCreateIndex(database, table.getName(), 
+        "grouper_sql_cache_deptype1_idx", true, 
+        COLUMN_GROUPER_SQL_CACHE_DEPEND_TYPE_DEPENDENCY_CATEGORY, COLUMN_GROUPER_SQL_CACHE_DEPEND_TYPE_NAME);
+  }
+  
+  static void addGrouperSqlCacheDependencyIndexes(DdlVersionBean ddlVersionBean, Database database) {
+    if (!GrouperDdl5_12_0.buildingToThisVersionAtLeast(ddlVersionBean)) {
+      return;
+    }
+    
+    if (ddlVersionBean.didWeDoThis("v5_14_0_addGrouperSqlCacheDependencyIndexes", true)) {
+      return;
+    }
+  
+    Table table = GrouperDdlUtils.ddlutilsFindOrCreateTable(database, TABLE_GROUPER_SQL_CACHE_DEPENDENCY);
+    
+    GrouperDdlUtils.ddlutilsFindOrCreateIndex(database, table.getName(), 
+        "grouper_sql_cache_dep1_idx", true, 
+        COLUMN_GROUPER_SQL_CACHE_DEPENDENCY_DEP_TYPE_INTERNAL_ID, COLUMN_GROUPER_SQL_CACHE_DEPENDENCY_OWNER_INTERNAL_ID, COLUMN_GROUPER_SQL_CACHE_DEPENDENCY_DEPENDENT_INTERNAL_ID);
+    
+    GrouperDdlUtils.ddlutilsFindOrCreateIndex(database, table.getName(), 
+        "grouper_sql_cache_dep2_idx", false, 
+        COLUMN_GROUPER_SQL_CACHE_DEPENDENCY_OWNER_INTERNAL_ID, COLUMN_GROUPER_SQL_CACHE_DEPENDENCY_DEPENDENT_INTERNAL_ID);
+    
+    GrouperDdlUtils.ddlutilsFindOrCreateIndex(database, table.getName(), 
+        "grouper_sql_cache_dep3_idx", false, 
+        COLUMN_GROUPER_SQL_CACHE_DEPENDENCY_DEPENDENT_INTERNAL_ID);
+  }
+  
+  static void addGrouperSqlCacheDependTypeComments(Database database, DdlVersionBean ddlVersionBean) {
+    
+    if (!GrouperDdl5_12_0.buildingToThisVersionAtLeast(ddlVersionBean)) {
+      return;
+    }
+  
+    if (ddlVersionBean.didWeDoThis("v5_14_0_addGrouperSqlCacheDependTypeComments", true)) {
+      return;
+    }
+  
+    final String tableName = TABLE_GROUPER_SQL_CACHE_DEPEND_TYPE;
+  
+    GrouperDdlUtils.ddlutilsTableComment(ddlVersionBean, 
+        tableName, 
+        "table to store types of dependencies");
+  
+    GrouperDdlUtils.ddlutilsColumnComment(ddlVersionBean, 
+        tableName, 
+        COLUMN_GROUPER_SQL_CACHE_DEPEND_TYPE_INTERNAL_ID, 
+        "primary key of the table");
+    
+    GrouperDdlUtils.ddlutilsColumnComment(ddlVersionBean, 
+        tableName, 
+        COLUMN_GROUPER_SQL_CACHE_DEPEND_TYPE_DEPENDENCY_CATEGORY, 
+        "category of dependency type");
+    
+    GrouperDdlUtils.ddlutilsColumnComment(ddlVersionBean, 
+        tableName, 
+        COLUMN_GROUPER_SQL_CACHE_DEPEND_TYPE_NAME, 
+        "name of dependency type");
+    
+    GrouperDdlUtils.ddlutilsColumnComment(ddlVersionBean, 
+        tableName, 
+        COLUMN_GROUPER_SQL_CACHE_DEPEND_TYPE_DESCRIPTION, 
+        "description of dependency type");
+  }
+  
+  static void addGrouperSqlCacheDependencyComments(Database database, DdlVersionBean ddlVersionBean) {
+    
+    if (!GrouperDdl5_12_0.buildingToThisVersionAtLeast(ddlVersionBean)) {
+      return;
+    }
+  
+    if (ddlVersionBean.didWeDoThis("v5_14_0_addGrouperSqlCacheDependencyComments", true)) {
+      return;
+    }
+  
+    final String tableName = TABLE_GROUPER_SQL_CACHE_DEPENDENCY;
+  
+    GrouperDdlUtils.ddlutilsTableComment(ddlVersionBean, 
+        tableName, 
+        "table to store dependencies");
+  
+    GrouperDdlUtils.ddlutilsColumnComment(ddlVersionBean, 
+        tableName, 
+        COLUMN_GROUPER_SQL_CACHE_DEPENDENCY_INTERNAL_ID, 
+        "primary key of the table");
+    
+    GrouperDdlUtils.ddlutilsColumnComment(ddlVersionBean, 
+        tableName, 
+        COLUMN_GROUPER_SQL_CACHE_DEPENDENCY_DEP_TYPE_INTERNAL_ID, 
+        "foreign key to grouper_sql_cache_depend_type table");
+    
+    GrouperDdlUtils.ddlutilsColumnComment(ddlVersionBean, 
+        tableName, 
+        COLUMN_GROUPER_SQL_CACHE_DEPENDENCY_OWNER_INTERNAL_ID, 
+        "Something that something else is dependent on.  If something in the owner changes, then the dependent object might need to change");
+    
+    GrouperDdlUtils.ddlutilsColumnComment(ddlVersionBean, 
+        tableName, 
+        COLUMN_GROUPER_SQL_CACHE_DEPENDENCY_DEPENDENT_INTERNAL_ID, 
+        "This is the internal id of the dependent object.  Check all the dependent objects if something changes in owner");
+    
+    GrouperDdlUtils.ddlutilsColumnComment(ddlVersionBean, 
+        tableName, 
+        COLUMN_GROUPER_SQL_CACHE_DEPENDENCY_CREATED_ON, 
+        "when this row was created");
+  }
 }
