@@ -58,6 +58,7 @@ import edu.internet2.middleware.grouper.hooks.examples.StemAttributeNameValidati
 import edu.internet2.middleware.grouper.hooks.examples.StemUniqueNameCaseInsensitiveHook;
 import edu.internet2.middleware.grouper.internal.dao.GrouperDAOException;
 import edu.internet2.middleware.grouper.misc.GrouperStartup;
+import edu.internet2.middleware.grouper.sqlCache.SqlCacheMembershipHstAssignVetoHook;
 import edu.internet2.middleware.grouper.util.GrouperUtil;
 
 
@@ -573,6 +574,7 @@ public class GrouperHooksUtils {
     StemUniqueNameCaseInsensitiveHook.clearHook();
     MembershipRequireMembershipHook.clearHook();
     GroupUniqueExtensionInFoldersHook.clearHook();
+    SqlCacheMembershipHstAssignVetoHook.clearHook();
   }
 
 }

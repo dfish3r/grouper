@@ -1,7 +1,5 @@
 package edu.internet2.middleware.grouper.sqlCache;
 
-import java.sql.Timestamp;
-
 import org.apache.commons.lang3.builder.EqualsBuilder;
 
 import edu.internet2.middleware.grouper.tableIndex.TableIndex;
@@ -17,6 +15,27 @@ import edu.internet2.middleware.grouperClient.util.GrouperClientUtils;
 public class SqlCacheDependencyType implements GcSqlAssignPrimaryKey, GcDbVersionable {
 
   public SqlCacheDependencyType() {
+  }
+  
+  /**
+   * category of this dependency type
+   */
+  private String dependencyCategory;
+
+  /**
+   * category of this dependency type
+   * @return
+   */
+  public String getDependencyCategory() {
+    return dependencyCategory;
+  }
+  
+  /**
+   * category of this dependency type
+   * @param dependencyCategory
+   */
+  public void setDependencyCategory(String dependencyCategory) {
+    this.dependencyCategory = dependencyCategory;
   }
   
   /**
@@ -60,41 +79,18 @@ public class SqlCacheDependencyType implements GcSqlAssignPrimaryKey, GcDbVersio
   public void setDescription(String description) {
     this.description = description;
   }
-
-  /**
-   * when this row was created
-   */
-  private Timestamp createdOn;
+  
   /**
    * version from db
    */
   @GcPersistableField(persist = GcPersist.dontPersist)
   private SqlCacheDependencyType dbVersion;
+  
   /**
    * internal integer id
    */
   @GcPersistableField(primaryKey=true, primaryKeyManuallyAssigned=true)
   private long internalId = -1;
-  
-  /**
-   * owner_type  varchar 
-   * G means group
-   * D means data field
-   * @return
-   */
-  public SqlCacheDependencyTypeType getNameEnum() {
-    return SqlCacheDependencyTypeType.valueOfIgnoreCase(name, false);
-  }
-
-  /**
-   * owner_type  varchar 
-   * G means group
-   * D means data field
-   * @param ownerTypeEnum
-   */
-  public void setNameEnum(SqlCacheDependencyTypeType ownerTypeEnum) {
-    this.name = ownerTypeEnum == null ? null : ownerTypeEnum.name();
-  }
 
   /**
    * deep clone the fields in this object
@@ -105,10 +101,10 @@ public class SqlCacheDependencyType implements GcSqlAssignPrimaryKey, GcDbVersio
     SqlCacheDependencyType sqlCacheDependencyType = new SqlCacheDependencyType();
   
     //dbVersion  DONT CLONE
-    sqlCacheDependencyType.createdOn = this.createdOn;
     sqlCacheDependencyType.description = sqlCacheDependencyType.description;
     sqlCacheDependencyType.internalId = this.internalId;
     sqlCacheDependencyType.name = this.name;
+    sqlCacheDependencyType.dependencyCategory = this.dependencyCategory;
   
     return sqlCacheDependencyType;
   }
@@ -178,10 +174,10 @@ public class SqlCacheDependencyType implements GcSqlAssignPrimaryKey, GcDbVersio
   
   
       //dbVersion  DONT EQUALS
-      .append(this.createdOn, other.createdOn)
       .append(this.description, other.description)
       .append(this.internalId, other.internalId)
       .append(this.name, other.name)
+      .append(this.dependencyCategory, other.dependencyCategory)
         .isEquals();
   
   }
@@ -202,9 +198,7 @@ public class SqlCacheDependencyType implements GcSqlAssignPrimaryKey, GcDbVersio
   }
 
   public void storePrepare() {
-    if (this.createdOn == null) {
-      this.createdOn = new Timestamp(System.currentTimeMillis());
-    }
+
   }
 
   /**

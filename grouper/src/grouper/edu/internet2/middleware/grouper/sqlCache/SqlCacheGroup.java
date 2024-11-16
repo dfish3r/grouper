@@ -36,6 +36,125 @@ public class SqlCacheGroup implements GcSqlAssignPrimaryKey, GcDbVersionable {
     
     return attributeDefFolderName;
   }
+  
+  public static String sqlCacheableHistoryDefExtension = "sqlCacheableHistoryDef";
+  public static String sqlCacheableHistoryDefName() {
+      return attributeDefFolderName() + ":" + SqlCacheGroup.sqlCacheableHistoryDefExtension;
+  }
+  
+  public static String sqlCacheableHistoryGroupMembersAttributeExtension = "sqlCacheableHistoryGroupMembers";
+  public static String sqlCacheableHistoryGroupMembersAttributeName() {    
+      return attributeDefFolderName() + ":" + SqlCacheGroup.sqlCacheableHistoryGroupMembersAttributeExtension;
+  }
+  
+  public static String sqlCacheableHistoryGroupAdminsAttributeExtension = "sqlCacheableHistoryGroupAdmins";
+  public static String sqlCacheableHistoryGroupAdminsAttributeName() {    
+      return attributeDefFolderName() + ":" + SqlCacheGroup.sqlCacheableHistoryGroupAdminsAttributeExtension;
+  }
+  
+  public static String sqlCacheableHistoryGroupOptoutsAttributeExtension = "sqlCacheableHistoryGroupOptouts";
+  public static String sqlCacheableHistoryGroupOptoutsAttributeName() {    
+      return attributeDefFolderName() + ":" + SqlCacheGroup.sqlCacheableHistoryGroupOptoutsAttributeExtension;
+  }
+  
+  public static String sqlCacheableHistoryGroupOptinsAttributeExtension = "sqlCacheableHistoryGroupOptins";
+  public static String sqlCacheableHistoryGroupOptinsAttributeName() {    
+      return attributeDefFolderName() + ":" + SqlCacheGroup.sqlCacheableHistoryGroupOptinsAttributeExtension;
+  }
+  
+  public static String sqlCacheableHistoryGroupReadersAttributeExtension = "sqlCacheableHistoryGroupReaders";
+  public static String sqlCacheableHistoryGroupReadersAttributeName() {    
+      return attributeDefFolderName() + ":" + SqlCacheGroup.sqlCacheableHistoryGroupReadersAttributeExtension;
+  }
+  
+  public static String sqlCacheableHistoryGroupUpdatersAttributeExtension = "sqlCacheableHistoryGroupUpdaters";
+  public static String sqlCacheableHistoryGroupUpdatersAttributeName() {    
+      return attributeDefFolderName() + ":" + SqlCacheGroup.sqlCacheableHistoryGroupUpdatersAttributeExtension;
+  }
+  
+  public static String sqlCacheableHistoryGroupViewersAttributeExtension = "sqlCacheableHistoryGroupViewers";
+  public static String sqlCacheableHistoryGroupViewersAttributeName() {    
+      return attributeDefFolderName() + ":" + SqlCacheGroup.sqlCacheableHistoryGroupViewersAttributeExtension;
+  }
+  
+  public static String sqlCacheableHistoryGroupAttrReadersAttributeExtension = "sqlCacheableHistoryGroupAttrReaders";
+  public static String sqlCacheableHistoryGroupAttrReadersAttributeName() {    
+      return attributeDefFolderName() + ":" + SqlCacheGroup.sqlCacheableHistoryGroupAttrReadersAttributeExtension;
+  }
+  
+  public static String sqlCacheableHistoryGroupAttrUpdatersAttributeExtension = "sqlCacheableHistoryGroupAttrUpdaters";
+  public static String sqlCacheableHistoryGroupAttrUpdatersAttributeName() {    
+      return attributeDefFolderName() + ":" + SqlCacheGroup.sqlCacheableHistoryGroupAttrUpdatersAttributeExtension;
+  }
+  
+  
+  public static String sqlCacheableHistoryAttributeDefAdminsAttributeExtension = "sqlCacheableHistoryAttributeDefAdmins";
+  public static String sqlCacheableHistoryAttributeDefAdminsAttributeName() {    
+      return attributeDefFolderName() + ":" + SqlCacheGroup.sqlCacheableHistoryAttributeDefAdminsAttributeExtension;
+  }
+  
+  public static String sqlCacheableHistoryAttributeDefOptoutsAttributeExtension = "sqlCacheableHistoryAttributeDefOptouts";
+  public static String sqlCacheableHistoryAttributeDefOptoutsAttributeName() {    
+      return attributeDefFolderName() + ":" + SqlCacheGroup.sqlCacheableHistoryAttributeDefOptoutsAttributeExtension;
+  }
+  
+  public static String sqlCacheableHistoryAttributeDefOptinsAttributeExtension = "sqlCacheableHistoryAttributeDefOptins";
+  public static String sqlCacheableHistoryAttributeDefOptinsAttributeName() {    
+      return attributeDefFolderName() + ":" + SqlCacheGroup.sqlCacheableHistoryAttributeDefOptinsAttributeExtension;
+  }
+  
+  public static String sqlCacheableHistoryAttributeDefReadersAttributeExtension = "sqlCacheableHistoryAttributeDefReaders";
+  public static String sqlCacheableHistoryAttributeDefReadersAttributeName() {    
+      return attributeDefFolderName() + ":" + SqlCacheGroup.sqlCacheableHistoryAttributeDefReadersAttributeExtension;
+  }
+  
+  public static String sqlCacheableHistoryAttributeDefUpdatersAttributeExtension = "sqlCacheableHistoryAttributeDefUpdaters";
+  public static String sqlCacheableHistoryAttributeDefUpdatersAttributeName() {    
+      return attributeDefFolderName() + ":" + SqlCacheGroup.sqlCacheableHistoryAttributeDefUpdatersAttributeExtension;
+  }
+  
+  public static String sqlCacheableHistoryAttributeDefViewersAttributeExtension = "sqlCacheableHistoryAttributeDefViewers";
+  public static String sqlCacheableHistoryAttributeDefViewersAttributeName() {    
+      return attributeDefFolderName() + ":" + SqlCacheGroup.sqlCacheableHistoryAttributeDefViewersAttributeExtension;
+  }
+  
+  public static String sqlCacheableHistoryAttributeDefAttrReadersAttributeExtension = "sqlCacheableHistoryAttributeDefAttrReaders";
+  public static String sqlCacheableHistoryAttributeDefAttrReadersAttributeName() {    
+      return attributeDefFolderName() + ":" + SqlCacheGroup.sqlCacheableHistoryAttributeDefAttrReadersAttributeExtension;
+  }
+  
+  public static String sqlCacheableHistoryAttributeDefAttrUpdatersAttributeExtension = "sqlCacheableHistoryAttributeDefAttrUpdaters";
+  public static String sqlCacheableHistoryAttributeDefAttrUpdatersAttributeName() {    
+      return attributeDefFolderName() + ":" + SqlCacheGroup.sqlCacheableHistoryAttributeDefAttrUpdatersAttributeExtension;
+  }
+  
+  
+  
+  public static String sqlCacheableHistoryStemCreatorsAttributeExtension = "sqlCacheableHistoryStemCreators";
+  public static String sqlCacheableHistoryStemCreatorsAttributeName() {    
+      return attributeDefFolderName() + ":" + SqlCacheGroup.sqlCacheableHistoryStemCreatorsAttributeExtension;
+  }
+  
+  public static String sqlCacheableHistoryStemAdminsAttributeExtension = "sqlCacheableHistoryStemAdmins";
+  public static String sqlCacheableHistoryStemAdminsAttributeName() {    
+      return attributeDefFolderName() + ":" + SqlCacheGroup.sqlCacheableHistoryStemAdminsAttributeExtension;
+  }
+  
+  public static String sqlCacheableHistoryStemViewersAttributeExtension = "sqlCacheableHistoryStemViewers";
+  public static String sqlCacheableHistoryStemViewersAttributeName() {    
+      return attributeDefFolderName() + ":" + SqlCacheGroup.sqlCacheableHistoryStemViewersAttributeExtension;
+  }
+  
+  public static String sqlCacheableHistoryStemAttrReadersAttributeExtension = "sqlCacheableHistoryStemAttrReaders";
+  public static String sqlCacheableHistoryStemAttrReadersAttributeName() {    
+      return attributeDefFolderName() + ":" + SqlCacheGroup.sqlCacheableHistoryStemAttrReadersAttributeExtension;
+  }
+  
+  public static String sqlCacheableHistoryStemAttrUpdatersAttributeExtension = "sqlCacheableHistoryStemAttrUpdaters";
+  public static String sqlCacheableHistoryStemAttrUpdatersAttributeName() {    
+      return attributeDefFolderName() + ":" + SqlCacheGroup.sqlCacheableHistoryStemAttrUpdatersAttributeExtension;
+  }
+  
 
   public SqlCacheGroup getDbVersion() {
     return this.dbVersion;

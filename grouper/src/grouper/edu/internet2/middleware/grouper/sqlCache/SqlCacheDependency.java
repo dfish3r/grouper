@@ -1,7 +1,5 @@
 package edu.internet2.middleware.grouper.sqlCache;
 
-import java.sql.Timestamp;
-
 import org.apache.commons.lang3.builder.EqualsBuilder;
 
 import edu.internet2.middleware.grouper.tableIndex.TableIndex;
@@ -41,6 +39,10 @@ public class SqlCacheDependency implements GcSqlAssignPrimaryKey, GcDbVersionabl
   public long getDependentInternalId() {
     return dependentInternalId;
   }
+  
+  public void setDependentInternalId(long dependentInternalId) {
+    this.dependentInternalId = dependentInternalId;
+  }
 
   
   /**
@@ -60,9 +62,9 @@ public class SqlCacheDependency implements GcSqlAssignPrimaryKey, GcDbVersionabl
   }
 
   /**
-   * when this row was created
+   * when this row was created in micros
    */
-  private Timestamp createdOn;
+  private Long createdOn;
   /**
    * version from db
    */
@@ -183,7 +185,7 @@ public class SqlCacheDependency implements GcSqlAssignPrimaryKey, GcDbVersionabl
 
   public void storePrepare() {
     if (this.createdOn == null) {
-      this.createdOn = new Timestamp(System.currentTimeMillis());
+      this.createdOn = System.currentTimeMillis() * 1000L;
     }
   }
 

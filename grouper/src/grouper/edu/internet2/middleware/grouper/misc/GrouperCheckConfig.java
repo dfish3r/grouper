@@ -162,7 +162,9 @@ import edu.internet2.middleware.grouper.permissions.limits.PermissionLimitUtils;
 import edu.internet2.middleware.grouper.privs.AttributeDefPrivilege;
 import edu.internet2.middleware.grouper.privs.NamingPrivilege;
 import edu.internet2.middleware.grouper.rules.RuleUtils;
+import edu.internet2.middleware.grouper.sqlCache.SqlCacheDependencyTypeDao;
 import edu.internet2.middleware.grouper.sqlCache.SqlCacheGroup;
+import edu.internet2.middleware.grouper.sqlCache.SqlCacheMembershipHstAssignVetoHook;
 import edu.internet2.middleware.grouper.stem.StemSaveBatch;
 import edu.internet2.middleware.grouper.stem.StemViewPrivilegeLogic;
 import edu.internet2.middleware.grouper.ui.customUi.CustomUiAttributeNames;
@@ -2472,6 +2474,7 @@ public class GrouperCheckConfig {
 
     MembershipRequireMembershipHook.registerHookIfNecessary();
     MembershipVetoIfDeprovisionedHook.registerHookIfNecessary();
+    SqlCacheMembershipHstAssignVetoHook.registerHookIfNecessary();
     
     GrouperSession.internal_callbackRootGrouperSession(new GrouperSessionHandler() {
 
@@ -2531,6 +2534,8 @@ public class GrouperCheckConfig {
             }
 
           }
+          
+          SqlCacheDependencyTypeDao.addDefaultSqlCacheDependencyTypesIfNecessary();
           
           AttributeAutoCreateHook.registerHookIfNecessary();
 
@@ -3277,6 +3282,16 @@ public class GrouperCheckConfig {
                 .assignAttributeDefPublic(false)
                 .assignValueType(AttributeDefValueType.marker));
 
+          }
+
+          {
+            String sqlCacheableHistoryDefName = SqlCacheGroup.sqlCacheableHistoryDefName();
+            attributeDefSaves.add(new AttributeDefSave().assignName(sqlCacheableHistoryDefName)
+                .assignAttributeDefType(AttributeDefType.attr)
+                .assignToGroup(true)
+                .assignToAttributeDef(true)
+                .assignToStem(true)
+                .assignMultiAssignable(false));
           }
 
           AttributeDefSave groupLoaderTypeSave = null;
@@ -4255,6 +4270,78 @@ public class GrouperCheckConfig {
             checkAttribute(instrumentationDataRootStem, detailsDef, InstrumentationDataUtils.INSTRUMENTATION_DATA_COLLECTOR_UUID_ATTR, InstrumentationDataUtils.INSTRUMENTATION_DATA_COLLECTOR_UUID_ATTR,
                 attributeDefNameSaves);
 
+          }
+          
+          {
+            Stem sqlCacheableFolder = stemNameToStem.get(SqlCacheGroup.attributeDefFolderName());
+            AttributeDef sqlCacheableHistoryDef = nameOfAttributeDefToAttributeDef.get(SqlCacheGroup.sqlCacheableHistoryDefName());                 
+            checkAttribute(sqlCacheableFolder, sqlCacheableHistoryDef, SqlCacheGroup.sqlCacheableHistoryGroupMembersAttributeExtension, SqlCacheGroup.sqlCacheableHistoryGroupMembersAttributeExtension,
+                "Assign this attribute on a group to enable sql cache history for the group's members list", attributeDefNameSaves);
+            
+            checkAttribute(sqlCacheableFolder, sqlCacheableHistoryDef, SqlCacheGroup.sqlCacheableHistoryGroupAdminsAttributeExtension, SqlCacheGroup.sqlCacheableHistoryGroupAdminsAttributeExtension,
+                "Assign this attribute on a group to enable sql cache history for the group's admins list", attributeDefNameSaves);
+            
+            checkAttribute(sqlCacheableFolder, sqlCacheableHistoryDef, SqlCacheGroup.sqlCacheableHistoryGroupOptoutsAttributeExtension, SqlCacheGroup.sqlCacheableHistoryGroupOptoutsAttributeExtension,
+                "Assign this attribute on a group to enable sql cache history for the group's optouts list", attributeDefNameSaves);
+            
+            checkAttribute(sqlCacheableFolder, sqlCacheableHistoryDef, SqlCacheGroup.sqlCacheableHistoryGroupOptinsAttributeExtension, SqlCacheGroup.sqlCacheableHistoryGroupOptinsAttributeExtension,
+                "Assign this attribute on a group to enable sql cache history for the group's optins list", attributeDefNameSaves);
+            
+            checkAttribute(sqlCacheableFolder, sqlCacheableHistoryDef, SqlCacheGroup.sqlCacheableHistoryGroupReadersAttributeExtension, SqlCacheGroup.sqlCacheableHistoryGroupReadersAttributeExtension,
+                "Assign this attribute on a group to enable sql cache history for the group's readers list", attributeDefNameSaves);
+            
+            checkAttribute(sqlCacheableFolder, sqlCacheableHistoryDef, SqlCacheGroup.sqlCacheableHistoryGroupUpdatersAttributeExtension, SqlCacheGroup.sqlCacheableHistoryGroupUpdatersAttributeExtension,
+                "Assign this attribute on a group to enable sql cache history for the group's updaters list", attributeDefNameSaves);
+            
+            checkAttribute(sqlCacheableFolder, sqlCacheableHistoryDef, SqlCacheGroup.sqlCacheableHistoryGroupViewersAttributeExtension, SqlCacheGroup.sqlCacheableHistoryGroupViewersAttributeExtension,
+                "Assign this attribute on a group to enable sql cache history for the group's viewers list", attributeDefNameSaves);
+            
+            checkAttribute(sqlCacheableFolder, sqlCacheableHistoryDef, SqlCacheGroup.sqlCacheableHistoryGroupAttrReadersAttributeExtension, SqlCacheGroup.sqlCacheableHistoryGroupAttrReadersAttributeExtension,
+                "Assign this attribute on a group to enable sql cache history for the group's groupAttrReaders list", attributeDefNameSaves);
+            
+            checkAttribute(sqlCacheableFolder, sqlCacheableHistoryDef, SqlCacheGroup.sqlCacheableHistoryGroupAttrUpdatersAttributeExtension, SqlCacheGroup.sqlCacheableHistoryGroupAttrUpdatersAttributeExtension,
+                "Assign this attribute on a group to enable sql cache history for the group's groupAttrUpdaters list", attributeDefNameSaves);
+            
+            
+            checkAttribute(sqlCacheableFolder, sqlCacheableHistoryDef, SqlCacheGroup.sqlCacheableHistoryAttributeDefAdminsAttributeExtension, SqlCacheGroup.sqlCacheableHistoryAttributeDefAdminsAttributeExtension,
+                "Assign this attribute on an attributeDef to enable sql cache history for the attributeDef's attrAdmins list", attributeDefNameSaves);
+            
+            checkAttribute(sqlCacheableFolder, sqlCacheableHistoryDef, SqlCacheGroup.sqlCacheableHistoryAttributeDefOptoutsAttributeExtension, SqlCacheGroup.sqlCacheableHistoryAttributeDefOptoutsAttributeExtension,
+                "Assign this attribute on an attributeDef to enable sql cache history for the attributeDef's attrOptouts list", attributeDefNameSaves);
+            
+            checkAttribute(sqlCacheableFolder, sqlCacheableHistoryDef, SqlCacheGroup.sqlCacheableHistoryAttributeDefOptinsAttributeExtension, SqlCacheGroup.sqlCacheableHistoryAttributeDefOptinsAttributeExtension,
+                "Assign this attribute on an attributeDef to enable sql cache history for the attributeDef's attrOptins list", attributeDefNameSaves);
+            
+            checkAttribute(sqlCacheableFolder, sqlCacheableHistoryDef, SqlCacheGroup.sqlCacheableHistoryAttributeDefReadersAttributeExtension, SqlCacheGroup.sqlCacheableHistoryAttributeDefReadersAttributeExtension,
+                "Assign this attribute on an attributeDef to enable sql cache history for the attributeDef's attrReaders list", attributeDefNameSaves);
+            
+            checkAttribute(sqlCacheableFolder, sqlCacheableHistoryDef, SqlCacheGroup.sqlCacheableHistoryAttributeDefUpdatersAttributeExtension, SqlCacheGroup.sqlCacheableHistoryAttributeDefUpdatersAttributeExtension,
+                "Assign this attribute on an attributeDef to enable sql cache history for the attributeDef's attrUpdaters list", attributeDefNameSaves);
+            
+            checkAttribute(sqlCacheableFolder, sqlCacheableHistoryDef, SqlCacheGroup.sqlCacheableHistoryAttributeDefViewersAttributeExtension, SqlCacheGroup.sqlCacheableHistoryAttributeDefViewersAttributeExtension,
+                "Assign this attribute on an attributeDef to enable sql cache history for the attributeDef's attrViewers list", attributeDefNameSaves);
+            
+            checkAttribute(sqlCacheableFolder, sqlCacheableHistoryDef, SqlCacheGroup.sqlCacheableHistoryAttributeDefAttrReadersAttributeExtension, SqlCacheGroup.sqlCacheableHistoryAttributeDefAttrReadersAttributeExtension,
+                "Assign this attribute on an attributeDef to enable sql cache history for the attributeDef's attrDefAttrReaders list", attributeDefNameSaves);
+            
+            checkAttribute(sqlCacheableFolder, sqlCacheableHistoryDef, SqlCacheGroup.sqlCacheableHistoryAttributeDefAttrUpdatersAttributeExtension, SqlCacheGroup.sqlCacheableHistoryAttributeDefAttrUpdatersAttributeExtension,
+                "Assign this attribute on an attributeDef to enable sql cache history for the attributeDef's attrDefAttrUpdaters list", attributeDefNameSaves);
+            
+            
+            checkAttribute(sqlCacheableFolder, sqlCacheableHistoryDef, SqlCacheGroup.sqlCacheableHistoryStemCreatorsAttributeExtension, SqlCacheGroup.sqlCacheableHistoryStemCreatorsAttributeExtension,
+                "Assign this attribute on a folder to enable sql cache history for the folder's creators list", attributeDefNameSaves);
+
+            checkAttribute(sqlCacheableFolder, sqlCacheableHistoryDef, SqlCacheGroup.sqlCacheableHistoryStemAdminsAttributeExtension, SqlCacheGroup.sqlCacheableHistoryStemAdminsAttributeExtension,
+                "Assign this attribute on a folder to enable sql cache history for the folder's stemAdmins list", attributeDefNameSaves);
+            
+            checkAttribute(sqlCacheableFolder, sqlCacheableHistoryDef, SqlCacheGroup.sqlCacheableHistoryStemViewersAttributeExtension, SqlCacheGroup.sqlCacheableHistoryStemViewersAttributeExtension,
+                "Assign this attribute on a folder to enable sql cache history for the folder's stemViewers list", attributeDefNameSaves);
+            
+            checkAttribute(sqlCacheableFolder, sqlCacheableHistoryDef, SqlCacheGroup.sqlCacheableHistoryStemAttrReadersAttributeExtension, SqlCacheGroup.sqlCacheableHistoryStemAttrReadersAttributeExtension,
+                "Assign this attribute on a folder to enable sql cache history for the folder's stemAttrReaders list", attributeDefNameSaves);
+            
+            checkAttribute(sqlCacheableFolder, sqlCacheableHistoryDef, SqlCacheGroup.sqlCacheableHistoryStemAttrUpdatersAttributeExtension, SqlCacheGroup.sqlCacheableHistoryStemAttrUpdatersAttributeExtension,
+                "Assign this attribute on a folder to enable sql cache history for the folder's stemAttrUpdaters list", attributeDefNameSaves);
           }
 
           {
