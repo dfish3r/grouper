@@ -99,7 +99,14 @@ public class UpgradeTasksJob extends OtherJobBase {
         otherJobInput.setJobName(jobName);
         otherJobInput.setHib3GrouperLoaderLog(hib3GrouperLoaderLog);
         otherJobInput.setGrouperSession(grouperSession);
-        new UpgradeTasksJob().run(otherJobInput);
+        try {          
+          new UpgradeTasksJob().run(otherJobInput);
+          hib3GrouperLoaderLog.setStatus(GrouperLoaderStatus.SUCCESS.name());
+          hib3GrouperLoaderLog.store();
+        } catch (Exception e) {
+          hib3GrouperLoaderLog.setStatus(GrouperLoaderStatus.ERROR.name());
+          hib3GrouperLoaderLog.store();
+        }
         return null;
       }
     });
