@@ -53,7 +53,7 @@ public class GrouperDataProviderTest extends GrouperTest {
   }
 
   public static void main(String[] args) {
-    TestRunner.run(new GrouperDataProviderTest("testFullJobDates"));
+    TestRunner.run(new GrouperDataProviderTest("testSqlProviderFull"));
   }
 
   public void setUp() {
@@ -849,6 +849,16 @@ public class GrouperDataProviderTest extends GrouperTest {
     assertEquals("math", new GcDbAccess().sql("select value_text from grouper_data_row_field_asgn_v where subject_id = 'test.subject.0' and data_field_config_id = 'affiliationOrg' and data_row_assign_internal_id = " + rowAssignId).select(String.class));
     assertEquals(1, new GcDbAccess().sql("select value_integer from grouper_data_row_field_asgn_v where subject_id = 'test.subject.0' and data_field_config_id = 'affiliationActive' and data_row_assign_internal_id = " + rowAssignId).select(int.class).intValue());
     
+    GrouperLoader.runOnceByJobName(grouperSession, "CHANGE_LOG_changeLogTempToChangeLog");
+    
+    for (String action : new String[] {"addDataFieldAssign", "deleteDataFieldAssign", "addDataRowFieldAssign",
+        "addDataRowAssign", "deleteDataRowAssign", "deleteDataRowFieldAssign"}) {
+      
+      int count = new GcDbAccess().sql("select count(1) from grouper_change_log_entry_v gclev where gclev.action_name = ?").addBindVar(action).select(int.class);
+      
+      assertTrue(action, count > 0);
+    }
+
   }
 
   /**

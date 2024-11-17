@@ -182,6 +182,63 @@ public enum ChangeLogTypeBuiltin implements ChangeLogTypeIdentifier {
       ChangeLogLabels.PRIVILEGE_DELETE.membershipType)),
       
   /**
+   * delete data field assign
+   */
+  DATA_FIELD_ASSIGN_DELETE(new ChangeLogType("dataFieldAssign", "deleteDataFieldAssign", 
+      ChangeLogLabels.DATA_FIELD_ASSIGN_DELETE.id, 
+      ChangeLogLabels.DATA_FIELD_ASSIGN_DELETE.dataFieldInternalId,
+      ChangeLogLabels.DATA_FIELD_ASSIGN_DELETE.memberInternalId,
+      ChangeLogLabels.DATA_FIELD_ASSIGN_DELETE.valueOrInternalId)),
+
+  /**
+   * delete data field assign
+   */
+  DATA_FIELD_ASSIGN_ADD(new ChangeLogType("dataFieldAssign", "addDataFieldAssign", 
+      ChangeLogLabels.DATA_FIELD_ASSIGN_ADD.id, 
+      ChangeLogLabels.DATA_FIELD_ASSIGN_ADD.dataFieldInternalId,
+      ChangeLogLabels.DATA_FIELD_ASSIGN_ADD.memberInternalId,
+      ChangeLogLabels.DATA_FIELD_ASSIGN_ADD.valueOrInternalId)),
+
+  /**
+   * delete data field assign
+   */
+  DATA_ROW_ASSIGN_ADD(new ChangeLogType("dataRowAssign", "addDataRowAssign", 
+      ChangeLogLabels.DATA_ROW_ASSIGN_ADD.id, 
+      ChangeLogLabels.DATA_ROW_ASSIGN_ADD.dataRowInternalId,
+      ChangeLogLabels.DATA_ROW_ASSIGN_ADD.memberInternalId)),
+
+  /**
+   * delete data field assign
+   */
+  DATA_ROW_ASSIGN_DELETE(new ChangeLogType("dataRowAssign", "deleteDataRowAssign", 
+      ChangeLogLabels.DATA_ROW_ASSIGN_DELETE.id, 
+      ChangeLogLabels.DATA_ROW_ASSIGN_DELETE.dataRowInternalId,
+      ChangeLogLabels.DATA_ROW_ASSIGN_DELETE.memberInternalId)),
+
+  /**
+   * delete data field assign
+   */
+  DATA_ROWFIELD_ASSIGN_DELETE(new ChangeLogType("dataRowFieldAssign", "deleteDataRowFieldAssign", 
+      ChangeLogLabels.DATA_ROWFIELD_ASSIGN_DELETE.id, 
+      ChangeLogLabels.DATA_ROWFIELD_ASSIGN_DELETE.dataRowInternalId,
+      ChangeLogLabels.DATA_ROWFIELD_ASSIGN_DELETE.dataRowAssignInternalId,
+      ChangeLogLabels.DATA_ROWFIELD_ASSIGN_DELETE.dataFieldInternalId,
+      ChangeLogLabels.DATA_ROWFIELD_ASSIGN_DELETE.memberInternalId,
+      ChangeLogLabels.DATA_ROWFIELD_ASSIGN_DELETE.valueOrInternalId)),
+
+  /**
+   * add data field assign
+   */
+  DATA_ROWFIELD_ASSIGN_ADD(new ChangeLogType("dataRowFieldAssign", "addDataRowFieldAssign", 
+      ChangeLogLabels.DATA_ROWFIELD_ASSIGN_ADD.id, 
+      ChangeLogLabels.DATA_ROWFIELD_ASSIGN_ADD.dataRowInternalId,
+      ChangeLogLabels.DATA_ROWFIELD_ASSIGN_ADD.dataRowAssignInternalId,
+      ChangeLogLabels.DATA_ROWFIELD_ASSIGN_ADD.dataFieldInternalId,
+      ChangeLogLabels.DATA_ROWFIELD_ASSIGN_ADD.memberInternalId,
+      ChangeLogLabels.DATA_ROWFIELD_ASSIGN_ADD.valueOrInternalId)),
+
+  
+  /**
    * add group
    */
   GROUP_ADD(new ChangeLogType("group", "addGroup", 

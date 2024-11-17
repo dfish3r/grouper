@@ -633,6 +633,127 @@ public class ChangeLogLabels {
     subjectIdentifier0;
   };
   
+
+  /**
+   * labels for data field assign delete
+   */
+  public static enum DATA_FIELD_ASSIGN_DELETE implements ChangeLogLabel {
+    
+    /** id of the data field assign */
+    id, 
+    
+    /** data field id */
+    dataFieldInternalId,
+    
+    /** member id */
+    memberInternalId,
+
+    /** value or internal id of dictionary */
+    valueOrInternalId
+
+  };
+
+  /**
+   * labels for data field assign delete
+   */
+  public static enum DATA_ROWFIELD_ASSIGN_DELETE implements ChangeLogLabel {
+    
+    /** id of the data field assign */
+    id, 
+    
+    /** data field id */
+    dataRowInternalId,
+    
+    /** data field id */
+    dataRowAssignInternalId,
+    
+    /** data field id */
+    dataFieldInternalId,
+    
+    /** member id */
+    memberInternalId,
+
+    /** value or internal id of dictionary */
+    valueOrInternalId
+
+  };
+
+  /**
+   * labels for data field assign add
+   */
+  public static enum DATA_ROWFIELD_ASSIGN_ADD implements ChangeLogLabel {
+    
+    /** id of the data field assign */
+    id, 
+    
+    /** data field id */
+    dataRowInternalId,
+    
+    /** data field id */
+    dataRowAssignInternalId,
+    
+    /** data field id */
+    dataFieldInternalId,
+    
+    /** member id */
+    memberInternalId,
+
+    /** value or internal id of dictionary */
+    valueOrInternalId
+
+  };
+
+  /**
+   * labels for data field assign add
+   */
+  public static enum DATA_FIELD_ASSIGN_ADD implements ChangeLogLabel {
+    
+    /** id of the data field assign */
+    id, 
+    
+    /** data field id */
+    dataFieldInternalId,
+    
+    /** member id */
+    memberInternalId,
+
+    /** value or internal id of dictionary */
+    valueOrInternalId
+
+  };
+
+  /**
+   * labels for data row assign add
+   */
+  public static enum DATA_ROW_ASSIGN_ADD implements ChangeLogLabel {
+    
+    /** id of the data field assign */
+    id, 
+    
+    /** data field id */
+    dataRowInternalId,
+    
+    /** member id */
+    memberInternalId
+
+  };
+
+  /**
+   * labels for data row assign delete
+   */
+  public static enum DATA_ROW_ASSIGN_DELETE implements ChangeLogLabel {
+    
+    /** id of the data field assign */
+    id, 
+    
+    /** data field id */
+    dataRowInternalId,
+    
+    /** member id */
+    memberInternalId
+
+  };
+
   /**
    * labels for privilege add
    */
