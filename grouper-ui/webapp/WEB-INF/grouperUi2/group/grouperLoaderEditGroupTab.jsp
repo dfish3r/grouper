@@ -310,6 +310,7 @@
                                 <span class="description">${textContainer.text["grouperLoaderEntityJexlScriptDescription"]}</span>
                               </td>
                             </tr>
+                            <%--
                             <tr>
                               <td style="vertical-align: top; white-space: nowrap;"><strong><label for="grouperLoaderIncludeInternalSourcesId">${textContainer.text['grouperLoaderIncludeInternalSources']}</label></strong></td>
                               <td>
@@ -327,6 +328,7 @@
                                 <span class="description">${textContainer.text["grouperLoaderIncludeInternalSourcesDescription"]}</span>
                               </td>
                             </tr>
+                             --%>
                           </c:if>
                          
                         </c:if>

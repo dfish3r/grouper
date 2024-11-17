@@ -413,6 +413,7 @@ ${grouper:titleFromKeyAndText('groupLoaderPageTitle', grouperRequestContainer.gr
                           
                           </td>
                         </tr>
+                        <%--
                         <tr>
                           <td style="vertical-align: top; white-space: nowrap;"><strong>${textContainer.text['grouperLoaderIncludeInternalSources']}</strong></td>
                           <td style="vertical-align: top;">
@@ -428,7 +429,7 @@ ${grouper:titleFromKeyAndText('groupLoaderPageTitle', grouperRequestContainer.gr
                           
                           </td>
                         </tr>
-                        
+                         --%>
                       </tbody>
                     </table>
                   </c:when>

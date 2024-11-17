@@ -32,7 +32,7 @@ public class GrouperLoaderJexlScriptFullSyncTest extends GrouperTest {
    * @param args
    */
   public static void main(String[] args) {
-    TestRunner.run(new GrouperLoaderJexlScriptFullSyncTest("testSimpleAttributeAssignmentStringIdentifier"));
+    TestRunner.run(new GrouperLoaderJexlScriptFullSyncTest("testJexlShouldntHaveGroup"));
   }
   
   /**
@@ -56,7 +56,7 @@ public class GrouperLoaderJexlScriptFullSyncTest extends GrouperTest {
         .assignAttributeDefName(attributeDefNameMarker).save();
     
     attributeAssign.getAttributeValueDelegate().assignValueString(attributeDefNameScript.getName(), "entity.hasAttribute('active')");
-    
+    GrouperLoader.runOnceByJobName(grouperSession, "CHANGE_LOG_changeLogTempToChangeLog");
     GrouperLoader.runOnceByJobName(GrouperSession.staticGrouperSession(), "OTHER_JOB_grouperLoaderJexlScriptFullSync");
     
     Subject testSubject0 = SubjectFinder.findByIdAndSource("test.subject.0", "jdbc", true);
@@ -69,6 +69,61 @@ public class GrouperLoaderJexlScriptFullSyncTest extends GrouperTest {
     
     assertTrue(members.contains(member0));
     assertTrue(members.contains(member2));
+    
+  }
+  
+  public void testJexlShouldntHaveGroup() {
+    setupDataFields();
+    
+    GrouperSession grouperSession = GrouperSession.startRootSession();
+    
+    Group testGroupA = new GroupSave().assignName("test:GroupA").assignCreateParentStemsIfNotExist(true).save();
+    Group testGroupB = new GroupSave().assignName("test:GroupB").assignCreateParentStemsIfNotExist(true).save();
+    Group testGroupC = new GroupSave().assignName("test:GroupC").assignCreateParentStemsIfNotExist(true).save();
+    Group testGroupE = new GroupSave().assignName("test:GroupE").assignCreateParentStemsIfNotExist(true).save();
+    
+    Subject testSubject0 = SubjectFinder.findByIdAndSource("test.subject.0", "jdbc", true);
+    Member member0 = MemberFinder.findBySubject(grouperSession, testSubject0, true);
+    
+    Subject testSubject1 = SubjectFinder.findByIdAndSource("test.subject.1", "jdbc", true);
+    Member member1 = MemberFinder.findBySubject(grouperSession, testSubject1, true);
+    
+    Subject testSubject2 = SubjectFinder.findByIdAndSource("test.subject.2", "jdbc", true);
+    Member member2 = MemberFinder.findBySubject(grouperSession, testSubject2, true);
+    
+    Subject testSubject3 = SubjectFinder.findByIdAndSource("test.subject.3", "jdbc", true);
+    Member member3 = MemberFinder.findBySubject(grouperSession, testSubject3, true);
+
+    testGroupA.addMember(testSubject0);
+    testGroupA.addMember(testSubject1);
+    testGroupA.addMember(testSubject2);
+    testGroupA.addMember(testSubject3);
+    
+    testGroupB.addMember(testSubject0);
+    
+    testGroupC.addMember(testGroupA.toSubject());
+
+    
+    AttributeDefName attributeDefNameMarker = AttributeDefNameFinder.findByName("etc:attribute:abacJexlScript:grouperJexlScriptMarker", true);
+    AttributeDefName attributeDefNameScript = AttributeDefNameFinder.findByName("etc:attribute:abacJexlScript:grouperJexlScriptJexlScript", true);
+    
+    AttributeAssign attributeAssign = new AttributeAssignSave(grouperSession).assignOwnerGroup(testGroupE)
+        .assignAttributeDefName(attributeDefNameMarker).save();
+    
+    attributeAssign.getAttributeValueDelegate().assignValueString(attributeDefNameScript.getName(), "entity.memberOf('test:GroupC') && !entity.memberOf('test:GroupB')");
+    
+    GrouperLoader.runOnceByJobName(grouperSession, "CHANGE_LOG_changeLogTempToChangeLog");
+    
+    //GrouperLoader.runOnceByJobName(grouperSession, "OTHER_JOB_sqlCacheFullSync");
+
+    GrouperLoader.runOnceByJobName(GrouperSession.staticGrouperSession(), "OTHER_JOB_grouperLoaderJexlScriptFullSync");
+    
+    Set<Member> members = testGroupE.getMembers();
+    assertEquals(3, members.size());
+    
+    assertTrue(members.contains(member1));
+    assertTrue(members.contains(member2));
+    assertTrue(members.contains(member3));
     
   }
   
@@ -86,7 +141,7 @@ public class GrouperLoaderJexlScriptFullSyncTest extends GrouperTest {
         .assignAttributeDefName(attributeDefNameMarker).save();
     
     attributeAssign.getAttributeValueDelegate().assignValueString(attributeDefNameScript.getName(), "entity.hasAttribute('org', '123')");
-    
+    GrouperLoader.runOnceByJobName(grouperSession, "CHANGE_LOG_changeLogTempToChangeLog");
     GrouperLoader.runOnceByJobName(GrouperSession.staticGrouperSession(), "OTHER_JOB_grouperLoaderJexlScriptFullSync");
     
     Subject testSubject0 = SubjectFinder.findByIdAndSource("test.subject.0", "jdbc", true);
@@ -116,7 +171,7 @@ public class GrouperLoaderJexlScriptFullSyncTest extends GrouperTest {
         .assignAttributeDefName(attributeDefNameMarker).save();
     
     attributeAssign.getAttributeValueDelegate().assignValueString(attributeDefNameScript.getName(), "entity.hasAttributeAny('org', ['123', '234'])");
-    
+    GrouperLoader.runOnceByJobName(grouperSession, "CHANGE_LOG_changeLogTempToChangeLog");
     GrouperLoader.runOnceByJobName(GrouperSession.staticGrouperSession(), "OTHER_JOB_grouperLoaderJexlScriptFullSync");
     
     Subject testSubject0 = SubjectFinder.findByIdAndSource("test.subject.0", "jdbc", true);
@@ -153,7 +208,7 @@ public class GrouperLoaderJexlScriptFullSyncTest extends GrouperTest {
     //  test.subject.0
     //  test.subject.2
     //  test.subject.1
-    
+    GrouperLoader.runOnceByJobName(grouperSession, "CHANGE_LOG_changeLogTempToChangeLog");
     GrouperLoader.runOnceByJobName(GrouperSession.staticGrouperSession(), "OTHER_JOB_grouperLoaderJexlScriptFullSync");
     
     Subject testSubject0 = SubjectFinder.findByIdAndSource("test.subject.0", "jdbc", true);
@@ -186,7 +241,7 @@ public class GrouperLoaderJexlScriptFullSyncTest extends GrouperTest {
         .assignAttributeDefName(attributeDefNameMarker).save();
     
     attributeAssign.getAttributeValueDelegate().assignValueString(attributeDefNameScript.getName(), "entity.hasAttributeAny('jobNumber', [123, 234])");
-    
+    GrouperLoader.runOnceByJobName(grouperSession, "CHANGE_LOG_changeLogTempToChangeLog");
     GrouperLoader.runOnceByJobName(GrouperSession.staticGrouperSession(), "OTHER_JOB_grouperLoaderJexlScriptFullSync");
     
     Subject testSubject0 = SubjectFinder.findByIdAndSource("test.subject.0", "jdbc", true);
@@ -219,7 +274,7 @@ public class GrouperLoaderJexlScriptFullSyncTest extends GrouperTest {
         .assignAttributeDefName(attributeDefNameMarker).save();
     
     attributeAssign.getAttributeValueDelegate().assignValueString(attributeDefNameScript.getName(), "entity.hasRow('affiliation', 'affiliationCode==staff')");
-    
+    GrouperLoader.runOnceByJobName(grouperSession, "CHANGE_LOG_changeLogTempToChangeLog");
     GrouperLoader.runOnceByJobName(GrouperSession.staticGrouperSession(), "OTHER_JOB_grouperLoaderJexlScriptFullSync");
     
     Subject testSubject0 = SubjectFinder.findByIdAndSource("test.subject.0", "jdbc", true);
@@ -249,7 +304,7 @@ public class GrouperLoaderJexlScriptFullSyncTest extends GrouperTest {
         .assignAttributeDefName(attributeDefNameMarker).save();
     
     attributeAssign.getAttributeValueDelegate().assignValueString(attributeDefNameScript.getName(), "entity.hasRow('affiliation', 'affiliationCode =~ [staff, fac, alum]')");
-    
+    GrouperLoader.runOnceByJobName(grouperSession, "CHANGE_LOG_changeLogTempToChangeLog");
     GrouperLoader.runOnceByJobName(GrouperSession.staticGrouperSession(), "OTHER_JOB_grouperLoaderJexlScriptFullSync");
     
     Subject testSubject0 = SubjectFinder.findByIdAndSource("test.subject.0", "jdbc", true);
@@ -281,7 +336,7 @@ public class GrouperLoaderJexlScriptFullSyncTest extends GrouperTest {
         .assignAttributeDefName(attributeDefNameMarker).save();
     
     attributeAssign.getAttributeValueDelegate().assignValueString(attributeDefNameScript.getName(), "entity.hasRow('affiliation', \"hasAttributeLike(affiliationCode, '%f%')\")");
-    
+    GrouperLoader.runOnceByJobName(grouperSession, "CHANGE_LOG_changeLogTempToChangeLog");
     GrouperLoader.runOnceByJobName(GrouperSession.staticGrouperSession(), "OTHER_JOB_grouperLoaderJexlScriptFullSync");
     
     Subject testSubject0 = SubjectFinder.findByIdAndSource("test.subject.0", "jdbc", true);
@@ -313,7 +368,7 @@ public class GrouperLoaderJexlScriptFullSyncTest extends GrouperTest {
         .assignAttributeDefName(attributeDefNameMarker).save();
     
     attributeAssign.getAttributeValueDelegate().assignValueString(attributeDefNameScript.getName(), "entity.hasRow('affiliation', \"hasAttributeRegex(affiliationCode, '^.*f.*$')\")");
-    
+    GrouperLoader.runOnceByJobName(grouperSession, "CHANGE_LOG_changeLogTempToChangeLog");
     GrouperLoader.runOnceByJobName(GrouperSession.staticGrouperSession(), "OTHER_JOB_grouperLoaderJexlScriptFullSync");
     
     Subject testSubject0 = SubjectFinder.findByIdAndSource("test.subject.0", "jdbc", true);
@@ -516,7 +571,7 @@ public class GrouperLoaderJexlScriptFullSyncTest extends GrouperTest {
     // load data
     GrouperDataProviderFullSyncJob.runDaemonStandalone("OTHER_JOB_dataProvider1");
   }
-
+  
   public void testSimpleAttributeAssignmentStringRegex() {
     setupDataFields();
     
@@ -535,7 +590,7 @@ public class GrouperLoaderJexlScriptFullSyncTest extends GrouperTest {
     //  test.subject.0
     //  test.subject.2
     //  test.subject.1
-    
+    GrouperLoader.runOnceByJobName(grouperSession, "CHANGE_LOG_changeLogTempToChangeLog");
     GrouperLoader.runOnceByJobName(GrouperSession.staticGrouperSession(), "OTHER_JOB_grouperLoaderJexlScriptFullSync");
     
     Subject testSubject0 = SubjectFinder.findByIdAndSource("test.subject.0", "jdbc", true);
@@ -554,6 +609,8 @@ public class GrouperLoaderJexlScriptFullSyncTest extends GrouperTest {
     
   }
 
+
+
   public void testSimpleAttributeAssignmentStringIdentifier() {
     setupDataFields();
     
@@ -568,7 +625,7 @@ public class GrouperLoaderJexlScriptFullSyncTest extends GrouperTest {
         .assignAttributeDefName(attributeDefNameMarker).save();
     
     attributeAssign.getAttributeValueDelegate().assignValueString(attributeDefNameScript.getName(), "entity.hasAttribute(org, '123')");
-    
+    GrouperLoader.runOnceByJobName(grouperSession, "CHANGE_LOG_changeLogTempToChangeLog");
     GrouperLoader.runOnceByJobName(GrouperSession.staticGrouperSession(), "OTHER_JOB_grouperLoaderJexlScriptFullSync");
     
     Subject testSubject0 = SubjectFinder.findByIdAndSource("test.subject.0", "jdbc", true);
