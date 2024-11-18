@@ -935,9 +935,10 @@ public class GrouperDdlEngine {
     
     try {
       // see if there are upgrade tasks to run
-      UpgradeTasksJob.runDaemonStandalone();
-    } catch (Exception e) {
-      LOG.debug("Could not run upgrade tasks, maybe this is expected if the tables arent there", e);
+      String jobMessageOptional = UpgradeTasksJob.runDaemonStandalone();
+      if (StringUtils.isNotBlank(jobMessageOptional)) {
+        throw new RuntimeException(jobMessageOptional);
+      }
     } finally {
       GrouperDdlUtils.insideBootstrap = false;
       
