@@ -108,7 +108,11 @@
                                 >${textContainer.text['stemViewAuditButton'] }</a></li>
                           </c:if>
 
-                          <c:if test="${grouperRequestContainer.deprovisioningContainer.canReadDeprovisioning}">
+                          <!-- anyone can view audit changes? -->
+                          <li><a href="#" onclick="return guiV2link('operation=UiV2Stem.viewHistoryChart&stemId=${grouperRequestContainer.stemContainer.guiStem.stem.id}'); return false;"
+                          >${textContainer.text['groupViewChartAuditButton'] }</a></li>
+
+                            <c:if test="${grouperRequestContainer.deprovisioningContainer.canReadDeprovisioning}">
                             <li><a href="javascript:void(0)" onclick="return guiV2link('operation=UiV2Deprovisioning.deprovisioningOnFolderReport&stemId=${grouperRequestContainer.stemContainer.guiStem.stem.id}'); return false;"
                               >${textContainer.text['deprovisioningMoreActionsMenuLabel'] }</a></li>
                           </c:if>         

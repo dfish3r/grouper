@@ -27,6 +27,7 @@ import java.net.URL;
 import java.text.MessageFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -55,6 +56,7 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.servlet.jsp.jstl.fmt.LocalizationContext;
 
+import com.sun.istack.NotNull;
 import edu.internet2.middleware.grouperClient.collections.MultiKey;
 import org.apache.commons.collections.set.ListOrderedSet;
 import org.apache.commons.lang.StringUtils;
@@ -2088,4 +2090,38 @@ public class GrouperUiUtils {
     
     return customCompositeIndexesAndUiKeys;
   }
+
+  /**
+   *
+   * @param calendar A calendar object, or null to default to the current date
+   * @param amount amount to add to the calendar (use negative numbers to subtract)
+   * @param dateScale hours, days, months, or years
+   * @return
+   */
+  public static Date offsetCalendar(Calendar calendar, int amount, @NotNull String dateScale) {
+    int calendarField;
+    Calendar cal = calendar == null ? calendar.getInstance() : (Calendar) calendar.clone();
+    int calenderField = Calendar.DATE;
+
+    switch (dateScale) {
+      case "hours":
+        calenderField = Calendar.HOUR;
+        break;
+      case "days":
+        calenderField = Calendar.DATE;
+        break;
+      case "months":
+        calenderField = Calendar.MONTH;
+        break;
+      case "years":
+        calenderField = Calendar.YEAR;
+        break;
+      default:
+        throw new RuntimeException("Could not determine offset type from '" + dateScale + "'");
+    }
+
+    cal.add(calenderField, amount);
+    return cal.getTime();
+  }
+
 }

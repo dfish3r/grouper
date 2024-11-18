@@ -2603,6 +2603,52 @@ function showHideMembershipAssignAttributeBlock() {
   } 
 }
 
+/**
+ * show/hide the relative/absolute date ranges in the group/folder audit log history chart
+ * */
+function showHideActivityChartFormDates(element) {
+  document.querySelectorAll('.chartRangeOption').forEach(function(element) {
+    element.classList.remove('active')
+  })
+
+  if (element.id === 'dateFromRelativeOptionId') {
+    document.getElementById('dateRangeTypeId').value = 'relative'
+    if ($("#date-range-relative-block-container").attr("aria-expanded") === 'true') {
+      // do nothing
+    } else {
+      $('#date-range-relative-block-container').toggle('fast');
+      $("#date-range-relative-block-container").attr("aria-expanded", "true");
+      $("#date-range-relative-block-container").attr("role", "alert");
+    }
+
+    if ($("#date-range-absolute-block-container").attr("aria-expanded") === 'true') {
+      $('#date-range-absolute-block-container').toggle('fast');
+      $("#date-range-absolute-block-container").attr("aria-expanded", "false");
+      $("#date-range-absolute-block-container").removeAttr("role");
+    }
+  }
+
+  else if (element.id === 'dateFromAbsoluteOptionId') {
+    document.getElementById('dateRangeTypeId').value = 'absolute'
+    if ($("#date-range-absolute-block-container").attr("aria-expanded") === 'true') {
+      // do nothing
+    } else {
+      $('#date-range-absolute-block-container').toggle('fast');
+      $("#date-range-absolute-block-container").attr("aria-expanded", "true");
+      $("#date-range-date-range-absolute-block-container-block-container").attr("role", "alert");
+    }
+
+    if ($("#date-range-relative-block-container").attr("aria-expanded") === 'true') {
+      $('#date-range-relative-block-container').toggle('fast');
+      $("#date-range-relative-block-container").attr("aria-expanded", "false");
+      $("#date-range-relative-block-container").removeAttr("role");
+    }
+  }
+
+  element.classList.add('active')
+
+  return false
+}
 
 /**
  * show the privileges block on click of Custom Privileges radio button
