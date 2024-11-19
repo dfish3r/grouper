@@ -1,0 +1,1 @@
+          <p>&copy; ${textContainer.text['institutionName'] }</p>
