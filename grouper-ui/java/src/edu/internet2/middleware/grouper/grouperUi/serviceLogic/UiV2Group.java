@@ -15,7 +15,16 @@
  ******************************************************************************/
 package edu.internet2.middleware.grouper.grouperUi.serviceLogic;
 
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.math.BigDecimal;
 import java.sql.Timestamp;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -34,6 +43,12 @@ import java.util.regex.Pattern;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import edu.internet2.middleware.grouper.ui.exceptions.ControllerDone;
+import edu.internet2.middleware.grouper.ui.util.HttpContentType;
+import edu.internet2.middleware.grouperClient.jdbc.GcDbAccess;
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVPrinter;
+import org.apache.commons.csv.QuoteMode;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 
@@ -151,7 +166,14 @@ import edu.internet2.middleware.subject.provider.SourceManager;
  */
 public class UiV2Group {
 
-  
+  /**
+   * Used for chart data in the audit log membership history graphs
+   * @param date the date buckets, evenly divided from start time and end time
+   * @param direct counts of direct member adds in each date slice
+   * @param indirect counts of indirect member adds in each date slice
+   */
+  public record ChartTimelineData(List<Long> date, List<Integer> direct, List<Integer> indirect) {}
+
   /**
    * results from retrieving results
    *
@@ -5955,16 +5977,278 @@ public class UiV2Group {
           guiResponseJs.addAction(GuiScreenAction.newMessage(GuiMessageType.success, successMessages));
         }
       }
-     
-     
-//      guiResponseJs.addAction(GuiScreenAction.newMessage(GuiMessageType.success, 
+
+
+//      guiResponseJs.addAction(GuiScreenAction.newMessage(GuiMessageType.success,
 //          TextContainer.retrieveFromRequest().getText().get("grouperReportConfigAddEditSuccess")));
-      
+
     } finally {
       GrouperSession.stopQuietly(grouperSession);
     }
-    
-  }
-  
-}
 
+  }
+
+  public void viewHistoryChart(HttpServletRequest request, HttpServletResponse response) {
+    final Subject loggedInSubject = GrouperUiFilter.retrieveSubjectLoggedIn();
+
+    GrouperSession grouperSession = null;
+
+    Group group = null;
+    try {
+      grouperSession = GrouperSession.start(loggedInSubject);
+
+      group = retrieveGroupHelper(request, AccessPrivilege.READ).getGroup();
+
+      if (group == null) {
+        return;
+      }
+
+      GuiResponseJs guiResponseJs = GuiResponseJs.retrieveGuiResponseJs();
+      guiResponseJs.addAction(GuiScreenAction.newInnerHtmlFromJsp("#grouperMainContentDivId", "/WEB-INF/grouperUi2/group/groupViewHistoryChart.jsp"));
+
+    } finally {
+      GrouperSession.stopQuietly(grouperSession);
+    }
+  }
+
+  public void viewHistoryChartResults(HttpServletRequest request, HttpServletResponse response) {
+    final Subject loggedInSubject = GrouperUiFilter.retrieveSubjectLoggedIn();
+
+    //initialize the bean
+    GuiResponseJs guiResponseJs = GuiResponseJs.retrieveGuiResponseJs();
+    GroupContainer groupContainer = GrouperRequestContainer.retrieveFromRequestOrCreate().getGroupContainer();
+
+    GrouperSession grouperSession = null;
+
+    Group group = null;
+    try {
+      grouperSession = GrouperSession.start(loggedInSubject);
+
+      group = retrieveGroupHelper(request, AccessPrivilege.READ).getGroup();
+
+      if (group == null) {
+        throw new RuntimeException("Group does not exist");
+      }
+      groupContainer.setGuiGroup(new GuiGroup(group));
+
+      //if the user is allowed
+      if (!GrouperRequestContainer.retrieveFromRequestOrCreate().getGroupContainer().isCanRead()) {
+
+        guiResponseJs.addAction(GuiScreenAction.newMessage(GuiMessageType.error,
+                TextContainer.retrieveFromRequest().getText().get("groupNotAllowedToViewHistoryChart")));
+        guiResponseJs.addAction(GuiScreenAction.newInnerHtmlFromJsp("#grouperMainContentDivId",
+                "/WEB-INF/grouperUi2/group/viewGroup.jsp"));
+        return;
+      }
+
+      Date dateFromDate;
+      Date dateToDate;
+
+      if ("absolute".equals(request.getParameter("dateRangeType"))) {
+        // absolute dates are formatted by the date picker as ISO
+        DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+
+        if (!GrouperUtil.isEmpty(request.getParameter("dateFromAbsolute"))) {
+          String dateFromString = request.getParameter("dateFromAbsolute");
+          LocalDateTime localDateTime = LocalDateTime.parse(dateFromString, formatter);
+          dateFromDate = Date.from(localDateTime.atZone(ZoneId.systemDefault()).toInstant());
+        } else {
+          dateFromDate = null;
+        }
+
+        if (!GrouperUtil.isEmpty(request.getParameter("dateToAbsolute"))) {
+          String dateToString = request.getParameter("dateToAbsolute");
+          LocalDateTime localDateTime = LocalDateTime.parse(dateToString, formatter);
+          dateToDate = Date.from(localDateTime.atZone(ZoneId.systemDefault()).toInstant());
+        } else {
+          dateToDate = new Date();
+        }
+      } else {
+        // assume relative
+        int defaultRelativeDays = -1 * GrouperUiConfig.retrieveConfig().propertyValueInt("grouperUi.membershipHistoryChart.defaultDays", 7);
+
+        String dateFromRelative = request.getParameter("dateFromRelative");
+        int dateFromRelativeValue = GrouperUtil.isEmpty(dateFromRelative) ? defaultRelativeDays : -1 * Integer.parseInt(dateFromRelative);
+        String dateScale = request.getParameter("dateFromRelativeScale");
+
+        dateFromDate = GrouperUiUtils.offsetCalendar(
+                null,
+                dateFromRelativeValue,
+                GrouperUtil.isEmpty(request.getParameter("dateFromRelativeScale")) ? "days" : dateScale);
+
+        dateToDate = new Date();
+      }
+
+      // If there was no input start date, get the earliest date among all activity, direct/indirect, members/privileges
+      if (dateFromDate == null) {
+        String activityQuery = """
+        select MIN(FLOOR(v.membership_start_time/(1e6*86400)) * 86400 * 1000) as start_time
+        from grouper_pit_memberships_all_v v
+        join grouper_pit_groups g on v.owner_group_id = g.id
+        where g.source_id = ?
+      """;
+
+        Long dateFloorMillis = new GcDbAccess().sql(activityQuery).addBindVar(group.getId()).select(Long.class);
+        if (dateFloorMillis == null) {
+          // no member data
+          guiResponseJs.addAction(GuiScreenAction.newMessage(GuiMessageType.info, "No data for this time period"));
+          return;
+        }
+
+        dateFromDate = new Date(dateFloorMillis);
+      }
+
+      String memberAddQuery = """
+      select trunc(v.membership_start_time / 1e6) as started_epoch,
+       case when v.depth = 0 then 'direct' else 'indirect' end as is_direct
+          from grouper_pit_memberships_all_v v
+          join grouper_pit_fields f on v.field_id = f.id
+          join grouper_pit_groups g on v.owner_group_id = g.id
+          where g.source_id = ?
+          and f.name = 'members'
+          and v.membership_start_time between ? and ?
+      """;
+
+      // Create buckets for each time division
+      long dateFromEpoch = dateFromDate.getTime() / 1000;
+      long dateToEpoch = dateToDate.getTime() / 1000;
+
+      int numBuckets = GrouperUiConfig.retrieveConfig().propertyValueInt("grouperUi.membershipHistoryChart.numTicks", 30);
+      List<Integer> directAddData = new ArrayList<>(Collections.nCopies(numBuckets, 0));
+      List<Integer> indirectAddData = new ArrayList<>(Collections.nCopies(numBuckets, 0));
+
+      List<Object[]>  memberAddQueryResults = new GcDbAccess().sql(memberAddQuery)
+              .addBindVar(group.getId())
+              .addBindVar(dateFromEpoch * 1e6)
+              .addBindVar(dateToEpoch * 1e6)
+              .selectList(Object[].class);
+
+      for (Object[] row : memberAddQueryResults) {
+        long epoch = ((BigDecimal) row[0]).longValueExact();
+        String type = (String) row[1];
+        int bucket = new BigDecimal(numBuckets * (epoch - dateFromEpoch) / (dateToEpoch - dateFromEpoch)).intValue();
+        if ("direct".equals(type)) {
+          directAddData.set(bucket, directAddData.get(bucket) + 1);
+        } else {
+          indirectAddData.set(bucket, indirectAddData.get(bucket) + 1);
+        }
+      }
+
+      List<Long> dateData = new ArrayList<>();
+      for (long r = 0; r < numBuckets ; r++) {
+        dateData.add(dateFromEpoch + (dateToEpoch - dateFromEpoch) * r / numBuckets);
+      }
+
+      ChartTimelineData memberAddData = new ChartTimelineData(dateData, directAddData, indirectAddData);
+
+
+      String memberDeleteQuery = """
+      select trunc(v.membership_end_time / 1e6) as ended_epoch,
+       case when v.depth = 0 then 'direct' else 'indirect' end as is_direct
+          from grouper_pit_memberships_all_v v
+          join grouper_pit_fields f on v.field_id = f.id
+          join grouper_pit_groups g on v.owner_group_id = g.id
+          where g.source_id = ?
+          and f.name = 'members'
+          and v.membership_end_time between ? and ?
+      """;
+
+      // Create buckets for each time division
+      List<Integer> directDeleteData = new ArrayList<>(Collections.nCopies(numBuckets, 0));
+      List<Integer> indirectDeleteData = new ArrayList<>(Collections.nCopies(numBuckets, 0));
+
+      List<Object[]>  memberDeleteQueryResults = new GcDbAccess().sql(memberDeleteQuery)
+              .addBindVar(group.getId())
+              .addBindVar(dateFromEpoch * 1e6)
+              .addBindVar(dateToEpoch * 1e6)
+              .selectList(Object[].class);
+
+      for (Object[] row : memberDeleteQueryResults) {
+        long epoch = ((BigDecimal) row[0]).longValueExact();
+        String type = (String) row[1];
+        int bucket = new BigDecimal(numBuckets * (epoch - dateFromEpoch) / (dateToEpoch - dateFromEpoch)).intValue();
+        if ("direct".equals(type)) {
+          directDeleteData.set(bucket, directDeleteData.get(bucket) + 1);
+        } else {
+          indirectDeleteData.set(bucket, indirectDeleteData.get(bucket) + 1);
+        }
+      }
+
+      ChartTimelineData memberDeleteData = new ChartTimelineData(dateData, directDeleteData, indirectDeleteData);
+
+      if ("export".equals(request.getParameter("action"))) {
+        exportChartAllFieldsToBrowser(response, group, memberAddData, memberDeleteData);
+        throw new ControllerDone();
+      }
+
+      guiResponseJs.addAction(GuiScreenAction.newInnerHtmlFromJsp("#grouperhistoryChartDivId", "/WEB-INF/grouperUi2/group/groupVewHistoryChartContents.jsp"));
+
+      guiResponseJs.addAction(GuiScreenAction.newAssign("memberAddData", memberAddData));
+      guiResponseJs.addAction(GuiScreenAction.newAssign("memberDeleteData", memberDeleteData));
+
+      guiResponseJs.addAction(GuiScreenAction.newScript("drawGraphModuleD3()"));
+    } catch (NumberFormatException e) {
+      throw new RuntimeException("Unable to parse integer: " + e.getMessage());
+    } finally {
+      GrouperSession.stopQuietly(grouperSession);
+    }
+  }
+
+  /**
+   *
+   * Export the data as CSV. For simplicity, the rows are driven by the date values in addData, so
+   *   the data sizes for addData and deleteData should be equal (to avoid index out of bounds)
+   *
+   * @param group
+   * @param addData data struct of date slices, and counts for direct and indirect adds
+   * @param deleteData data struct of date slices, and counts for direct and indirect deletes
+   */
+  public static void exportChartAllFieldsToBrowser(HttpServletResponse response, Group group, ChartTimelineData addData, ChartTimelineData deleteData) {
+    response.setContentType("text/html");
+    response.setContentType(HttpContentType.TEXT_CSV.getContentType());
+    String groupExtensionFileName = GuiGroup.getExportAllFileNameStatic(group);
+    response.setHeader ("Content-Disposition", "inline;filename=\"" + groupExtensionFileName + "\"");
+
+    PrintWriter out;
+    try {
+      out = response.getWriter();
+    } catch (Exception e) {
+      throw new RuntimeException("Can't get response.getWriter: ", e);
+    }
+
+    CSVFormat csvFileFormat = CSVFormat.DEFAULT.withQuoteMode(QuoteMode.ALL);
+
+    CSVPrinter csvPrinter;
+    DateFormat dateFormat = new SimpleDateFormat(GrouperUtil.DATE_MINUTES_SECONDS_FORMAT);
+
+    try {
+      csvPrinter = new CSVPrinter(out, csvFileFormat);
+
+      csvPrinter.printRecord("Row", "Date", "Add Direct", "Add Indirect", "Delete Direct", "Delete Indirect");
+
+      for (int c = 0; c < addData.date.size(); c++) {
+        String dateString = dateFormat.format(addData.date.get(c) * 1000);
+        Integer v1 = null;
+        Integer v2 = null;
+        Integer v3 = null;
+        Integer v4 = null;
+
+        try {
+          v1 = addData.direct.get(c);
+          v2 = addData.indirect.get(c);
+          v3 = deleteData.direct.get(c);
+          v4 = deleteData.indirect.get(c);
+        } catch (IndexOutOfBoundsException e) {
+          ;
+        }
+
+        csvPrinter.printRecord(c + 1, dateString, v1, v2, v3, v4);
+      }
+
+      csvPrinter.close();
+
+    } catch (IOException e) {
+      throw new RuntimeException("Can't get CSVPrinter: ", e);
+    }
+  }
+}

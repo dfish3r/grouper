@@ -15,12 +15,7 @@
       <div class="navbar navbar-static-top">
         <div class="navbar-inner">
           <div class="container-fluid">
-            <div class="pull-left"><a href="#" onclick="return guiV2link('operation=UiV2Main.indexMain');"><img class="brand" src="../../${mediaMap['image.organisation-logo']}" alt="Logo" style="padding-top: 5px; padding-bottom: 5px" /></a><br />
-               <c:if test="${mediaMap['uiV2.disable.hide-show.side.panel']=='false'}">
-                  <a id="grouperHideSidePanelId" href="#" style="font-size: smaller" onclick="ajax('../app/UiV2Main.grouperHideSidePanel'); return false;">${textContainer.text['grouperHideSidePanel']}</a>
-                  <a id="grouperShowSidePanelId" href="#" style="display: none; font-size: smaller" onclick="ajax('../app/UiV2Main.grouperShowSidePanel'); return false;" style="display:none">${textContainer.text['grouperShowSidePanel']}</a>
-              </c:if>
-            </div>
+            <%@ include file="../assetsJsp/header.jsp"%>
             <div class="pull-right">
 
               <form id="searchForm" action="#" onsubmit="return guiV2link('operation=UiV2Main.searchSubmit', {optionalFormElementNamesToSend: 'searchQuery2'});" class="navbar-search">
@@ -81,18 +76,7 @@
               <div id="demo2" class="collapse in">
                 <div class="accordion-inner">
                   <ul class="nav nav-list" id="quicklinks-nav">
-                    <li><a id="leftMenuMyGroupsLink" href="#" 
-                  onclick="return guiV2link('operation=UiV2MyGroups.myGroups');">${textContainer.text['indexMyGroupsButton'] }</a></li>
-                    <li><a id="leftMenuMyStemsLink" href="#" 
-                  onclick="return guiV2link('operation=UiV2MyStems.myStems');">${textContainer.text['indexMyStemsButton'] }</a></li>
-                    <li><a id="leftMenuMyFavoritesLink" href="#" 
-                  onclick="return guiV2link('operation=UiV2Main.myFavorites');">${textContainer.text['indexMyFavoritesButton'] }</a></li>
-                    <li><a id="leftMenuMyServicesLink" href="#" 
-                  onclick="return guiV2link('operation=UiV2Main.myServices');">${textContainer.text['indexMyServicesButton'] }</a></li>
-                    <li><a id="leftMenuMyActivityLink" href="#" 
-                  onclick="return guiV2link('operation=UiV2Main.myActivity');">${textContainer.text['indexMyActivityButton'] }</a></li>
-                    <li><a id="leftMenuMiscellaneousLink" href="#" 
-                      onclick="return guiV2link('operation=UiV2Main.miscellaneous');">${textContainer.text['indexMiscellaneousButton'] }</a></li>
+                    <%@ include file="../assetsJsp/quicklinks-nav.jsp" %>
                   </ul>
                 </div>
               </div>
@@ -123,7 +107,7 @@
         </div>
         <hr>
         <footer>
-          <p>&copy; ${textContainer.text['institutionName'] }</p>
+          <%@ include file="../assetsJsp/footer.jsp"%>
         </footer>
       </div>
     </div>

@@ -93,22 +93,28 @@
                           <li><a href="#" onclick="return guiV2link('operation=UiV2Group.groupMove&groupId=${grouperRequestContainer.groupContainer.guiGroup.group.id}'); return false;"
                               >${textContainer.text['groupViewMoveGroupButton'] }</a></li>
                         </c:if>
-                        <c:if test="${grouperRequestContainer.groupContainer.canAdmin}">
-                          <li class="dropdown-item disabled grouper-menu-subheader">${textContainer.text['groupViewMoreActionsAuditing']}</li>
-                          <li><a href="#" onclick="return guiV2link('operation=UiV2Group.viewAudits&groupId=${grouperRequestContainer.groupContainer.guiGroup.group.id}&auditType=group'); return false;"
-                              >${textContainer.text['groupViewAuditButton'] }</a></li>
-                              
-                          <li><a href="#" onclick="return guiV2link('operation=UiV2Group.viewAudits&groupId=${grouperRequestContainer.groupContainer.guiGroup.group.id}&auditType=actions'); return false;"
-                              >${textContainer.text['groupViewActionAuditButton'] }</a></li>
-                          
-                          <li><a href="#" onclick="return guiV2link('operation=UiV2Group.viewAudits&groupId=${grouperRequestContainer.groupContainer.guiGroup.group.id}&auditType=membership'); return false;"
-                              >${textContainer.text['groupViewMembershipAuditButton'] }</a></li>
-                          
-                          <li><a href="#" onclick="return guiV2link('operation=UiV2Group.viewAudits&groupId=${grouperRequestContainer.groupContainer.guiGroup.group.id}&auditType=privileges'); return false;"
-                              >${textContainer.text['groupViewPrivilegeAuditButton'] }</a></li>
-                          
-                        </c:if>
-                        
+                        <c:choose>
+                          <c:when test="${grouperRequestContainer.groupContainer.canAdmin}">
+                            <li class="dropdown-item disabled grouper-menu-subheader">${textContainer.text['groupViewMoreActionsAuditing']}</li>
+                            <li><a href="#" onclick="return guiV2link('operation=UiV2Group.viewAudits&groupId=${grouperRequestContainer.groupContainer.guiGroup.group.id}&auditType=group'); return false;"
+                                >${textContainer.text['groupViewAuditButton'] }</a></li>
+
+                            <li><a href="#" onclick="return guiV2link('operation=UiV2Group.viewAudits&groupId=${grouperRequestContainer.groupContainer.guiGroup.group.id}&auditType=actions'); return false;"
+                                >${textContainer.text['groupViewActionAuditButton'] }</a></li>
+
+                            <li><a href="#" onclick="return guiV2link('operation=UiV2Group.viewAudits&groupId=${grouperRequestContainer.groupContainer.guiGroup.group.id}&auditType=membership'); return false;"
+                                >${textContainer.text['groupViewMembershipAuditButton'] }</a></li>
+
+                            <li><a href="#" onclick="return guiV2link('operation=UiV2Group.viewAudits&groupId=${grouperRequestContainer.groupContainer.guiGroup.group.id}&auditType=privileges'); return false;"
+                                >${textContainer.text['groupViewPrivilegeAuditButton'] }</a></li>
+                            <li><a href="#" onclick="return guiV2link('operation=UiV2Group.viewHistoryChart&groupId=${grouperRequestContainer.groupContainer.guiGroup.group.id}'); return false;"
+                                >${textContainer.text['groupViewChartAuditButton'] }</a></li>
+                          </c:when>
+                          <c:when test="${grouperRequestContainer.groupContainer.canRead}">
+                            <li><a href="#" onclick="return guiV2link('operation=UiV2Group.viewHistoryChart&groupId=${grouperRequestContainer.groupContainer.guiGroup.group.id}'); return false;"
+                                >${textContainer.text['groupViewChartAuditButton'] }</a></li>
+                          </c:when>
+                        </c:choose>
                         
                         <c:if test="${grouperRequestContainer.groupContainer.canRead
                             || grouperRequestContainer.groupContainer.canAdmin 
