@@ -16,6 +16,8 @@ public class GrouperScim2ProvisionerConfiguration extends GrouperProvisioningCon
   private String scimType;
   
   private String acceptHeader;
+
+  private String scimNamePatchStrategy;
   
   public boolean isGithubOrgConfiguration() {
     return StringUtils.equals("Github", this.getScimType())
@@ -71,10 +73,17 @@ public class GrouperScim2ProvisionerConfiguration extends GrouperProvisioningCon
       Map<String, String> entityAttributeJsonPointer) {
     this.entityAttributeJsonPointer = entityAttributeJsonPointer;
   }
-
-
+  
+  
+  public String getScimNamePatchStrategy() {
+    return scimNamePatchStrategy;
+  }
 
   
+  public void setScimNamePatchStrategy(String scimNamePatchStrategy) {
+    this.scimNamePatchStrategy = scimNamePatchStrategy;
+  }
+
   public boolean isDisableEntitiesInsteadOfDelete() {
     return disableEntitiesInsteadOfDelete;
   }
@@ -101,6 +110,9 @@ public class GrouperScim2ProvisionerConfiguration extends GrouperProvisioningCon
     this.bearerTokenExternalSystemConfigId = this.retrieveConfigString("bearerTokenExternalSystemConfigId", true);
     this.scimType = this.retrieveConfigString("scimType", true);
     this.acceptHeader = this.retrieveConfigString("acceptHeader", false);
+    
+    this.scimNamePatchStrategy = this.retrieveConfigString("scimNamePatchStrategy", false);
+    
     this.disableEntitiesInsteadOfDelete = GrouperUtil.booleanValue(this.retrieveConfigBoolean("disableEntitiesInsteadOfDelete", false), false);
 
     this.includeActiveOnEntityCreate = GrouperUtil.booleanValue(this.retrieveConfigBoolean("includeActiveOnEntityCreate", false), true);
