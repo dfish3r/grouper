@@ -1191,13 +1191,25 @@ ${grouper:titleFromKeyAndText('groupLoaderPageTitle', grouperRequestContainer.gr
                         </c:if>
                         <c:if test="${grouperRequestContainer.grouperLoaderContainer.editLoaderConstructScript != 'pattern'}">
                           
-                          <c:if test="${grouperRequestContainer.grouperLoaderContainer.editLoaderType == 'JEXL_SCRIPT'}">
+                          <c:if test="${grouperRequestContainer.grouperLoaderContainer.editLoaderType == 'JEXL_SCRIPT' and grouperRequestContainer.grouperLoaderContainer.editLoaderIsLoader}">
                             
                             <td style="white-space: nowrap; padding-top: 2em; padding-bottom: 2em;"><input type="submit" class="btn btn-primary" aria-controls="groupFilterResultsId" id="filterSubmitId" 
                               value="${textContainer.text['grouperLoaderEditButtonAnalyze'] }" 
                               onclick="ajax('../app/UiV2GrouperLoader.editGrouperLoaderAnalyze', {formIds: 'editLoaderFormId'}); return false;"> 
                               &nbsp; 
                               <a class="btn btn-cancel" role="button"
+                                onclick="return guiV2link('operation=UiV2GrouperLoader.loader?groupId=${grouperRequestContainer.groupContainer.guiGroup.group.id}'); return false;"
+                                >${textContainer.text['grouperLoaderEditButtonCancel'] }</a>
+                            </td>
+                            
+                          </c:if>
+                          <c:if test="${grouperRequestContainer.grouperLoaderContainer.editLoaderType == 'JEXL_SCRIPT' and grouperRequestContainer.grouperLoaderContainer.editLoaderIsLoader == false}">
+                            
+                            <td style="white-space: nowrap; padding-top: 2em; padding-bottom: 2em;"><input type="submit" class="btn btn-primary" aria-controls="groupFilterResultsId" id="filterSubmitId" 
+                              value="${textContainer.text['grouperLoaderEditButtonSave'] }" 
+                              onclick="ajax('../app/UiV2GrouperLoader.editGrouperLoaderSave', {formIds: 'editLoaderFormId'}); return false;"> 
+                              &nbsp; 
+                              <a class="btn btn-cancel" role="button" 
                                 onclick="return guiV2link('operation=UiV2GrouperLoader.loader?groupId=${grouperRequestContainer.groupContainer.guiGroup.group.id}'); return false;"
                                 >${textContainer.text['grouperLoaderEditButtonCancel'] }</a>
                             </td>
