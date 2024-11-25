@@ -19,6 +19,10 @@ public class GrouperScim2ProvisionerConfiguration extends GrouperProvisioningCon
 
   private String scimNamePatchStrategy;
   
+  private String scimEmailPatchStrategy;
+  
+  private String scimContentType;
+  
   public boolean isGithubOrgConfiguration() {
     return StringUtils.equals("Github", this.getScimType())
         && this.isOperateOnGrouperGroups()
@@ -102,8 +106,17 @@ public class GrouperScim2ProvisionerConfiguration extends GrouperProvisioningCon
   public void setIncludeActiveOnEntityCreate(boolean includeActiveOnEntityCreate) {
     this.includeActiveOnEntityCreate = includeActiveOnEntityCreate;
   }
+  
+  
+  public String getScimContentType() {
+    return scimContentType;
+  }
 
   
+  public void setScimContentType(String scimContentType) {
+    this.scimContentType = scimContentType;
+  }
+
   @Override
   public void configureSpecificSettings() {
     
@@ -111,7 +124,9 @@ public class GrouperScim2ProvisionerConfiguration extends GrouperProvisioningCon
     this.scimType = this.retrieveConfigString("scimType", true);
     this.acceptHeader = this.retrieveConfigString("acceptHeader", false);
     
-    this.scimNamePatchStrategy = this.retrieveConfigString("scimNamePatchStrategy", false);
+    this.scimNamePatchStrategy = GrouperUtil.defaultIfBlank(this.retrieveConfigString("scimNamePatchStrategy", false), "nonqualified");
+    this.scimEmailPatchStrategy = GrouperUtil.defaultIfBlank(this.retrieveConfigString("scimEmailPatchStrategy", false), "pathEmails");
+    this.scimContentType = GrouperUtil.defaultIfBlank(this.retrieveConfigString("scimContentType", false), "application/json");
     
     this.disableEntitiesInsteadOfDelete = GrouperUtil.booleanValue(this.retrieveConfigBoolean("disableEntitiesInsteadOfDelete", false), false);
 
@@ -172,6 +187,16 @@ public class GrouperScim2ProvisionerConfiguration extends GrouperProvisioningCon
   
   public void setAcceptHeader(String acceptHeader) {
     this.acceptHeader = acceptHeader;
+  }
+
+  
+  public String getScimEmailPatchStrategy() {
+    return scimEmailPatchStrategy;
+  }
+
+  
+  public void setScimEmailPatchStrategy(String scimEmailPatchStrategy) {
+    this.scimEmailPatchStrategy = scimEmailPatchStrategy;
   }
   
   
