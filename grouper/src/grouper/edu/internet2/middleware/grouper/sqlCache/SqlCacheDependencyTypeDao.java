@@ -80,7 +80,13 @@ public class SqlCacheDependencyTypeDao {
   
   public static void addDefaultSqlCacheDependencyTypesIfNecessary() {
     {
-      List<SqlCacheDependencyType> sqlCacheDependencyTypes = retrieveByDependencyCategory("mshipHistory");
+      List<SqlCacheDependencyType> sqlCacheDependencyTypes = null;
+      try {
+        sqlCacheDependencyTypes = retrieveByDependencyCategory("mshipHistory");
+      } catch (Exception e) {
+        // table doesnt exist
+        return;
+      }
       Set<String> names = new HashSet<String>();
       for (SqlCacheDependencyType sqlCacheDependencyType : sqlCacheDependencyTypes) {
         names.add(sqlCacheDependencyType.getName());

@@ -5,6 +5,7 @@ import edu.internet2.middleware.grouper.app.loader.OtherJobBase.OtherJobInput;
 import edu.internet2.middleware.grouper.ddl.GrouperDdlUtils;
 import edu.internet2.middleware.grouper.exception.GrouperSessionException;
 import edu.internet2.middleware.grouper.misc.GrouperSessionHandler;
+import edu.internet2.middleware.grouper.sqlCache.SqlCacheDependencyTypeDao;
 import edu.internet2.middleware.grouperClient.jdbc.GcDbAccess;
 
 public class UpgradeTaskV28 implements UpgradeTasksInterface {
@@ -88,6 +89,9 @@ public class UpgradeTaskV28 implements UpgradeTasksInterface {
             new GcDbAccess().sql("COMMENT ON COLUMN grouper_sql_cache_depend_type.name IS 'name of dependency type'").executeSql();
             new GcDbAccess().sql("COMMENT ON COLUMN grouper_sql_cache_depend_type.description IS 'description of dependency type'").executeSql();
           }
+          
+          // add rows
+          SqlCacheDependencyTypeDao.addDefaultSqlCacheDependencyTypesIfNecessary();
         }
         
         if (!GrouperDdlUtils.assertIndexExists("grouper_sql_cache_depend_type", "grouper_sql_cache_deptype1_idx")) {
