@@ -180,7 +180,7 @@ public class GrouperScim2ApiCommands {
 //    grouperScim2User = retrieveScimUser(scimConfigId, "userName", "userNam5");
 //    System.out.println(grouperScim2User);
 
-    List<GrouperScim2User> grouperScim2Users = retrieveScimUsers("awsConfigId", null);
+    List<GrouperScim2User> grouperScim2Users = retrieveScimUsers((ScimSettings)null, "awsConfigId");
     for (GrouperScim2User grouperScim2User : grouperScim2Users) {
       System.out.println(grouperScim2User);
     }
@@ -216,6 +216,17 @@ public class GrouperScim2ApiCommands {
 
   }
 
+  /**
+   * @deprecated
+   */
+  @Deprecated
+  public static void patchScimUser(String configId, String acceptHeader,
+      GrouperScim2User grouperScim2User, Map<String, ProvisioningObjectChangeAction> fieldsToUpdate, String orgName) {
+    ScimSettings scimSettings = new ScimSettings();
+    scimSettings.setAcceptHeader(acceptHeader);
+    scimSettings.setOrgName(orgName);
+    patchScimUser(configId, grouperScim2User, fieldsToUpdate, scimSettings);
+  }
   
   /**
    * create a user
@@ -562,6 +573,17 @@ public class GrouperScim2ApiCommands {
   }
 
   /**
+   * @deprecated
+   */
+  @Deprecated
+  public static void patchScimGroup(String configId, String acceptHeader,
+      GrouperScim2Group grouperScim2Group, Map<String, ProvisioningObjectChangeAction> fieldsToUpdate) {
+    ScimSettings scimSettings = new ScimSettings();
+    scimSettings.setAcceptHeader(acceptHeader);
+    patchScimGroup(configId, grouperScim2Group, fieldsToUpdate, scimSettings);
+  }
+  
+  /**
    * update a group
    * @param grouperScim2Group
    * @return the result
@@ -775,6 +797,18 @@ public class GrouperScim2ApiCommands {
   }
 
   /**
+   * @deprecated
+   */
+  @Deprecated
+  public static GrouperScim2User createScimUser(String configId, String acceptHeader,
+      GrouperScim2User grouperScimUser, Set<String> fieldsToUpdate, String orgName) {
+    ScimSettings scimSettings = new ScimSettings();
+    scimSettings.setAcceptHeader(acceptHeader);
+    scimSettings.setOrgName(orgName);
+    return createScimUser(configId, grouperScimUser, fieldsToUpdate, scimSettings);
+
+  }
+  /**
    * create a user
    * @param grouperScimUser
    * @return the result
@@ -813,6 +847,18 @@ public class GrouperScim2ApiCommands {
 
   }
 
+  /**
+   * @deprecated
+   */
+  @Deprecated
+  public static GrouperScim2User retrieveScimUser(String configId, String acceptHeader, String fieldName,
+      String fieldValue, String orgName) {
+    ScimSettings scimSettings = new ScimSettings();
+    scimSettings.setAcceptHeader(acceptHeader);
+    scimSettings.setOrgName(orgName);
+    return retrieveScimUser(configId, fieldName, fieldValue, scimSettings);
+  }
+  
   /**
    * @param configId
    * @param fieldName id or userPrincipalName
@@ -882,18 +928,31 @@ public class GrouperScim2ApiCommands {
 
 
   /**
-   * retrieve all users
-   * @return the results
+   * @deprecated
    */
-//  public static List<GrouperScim2User> retrieveScimUsers(String configId, String acceptHeader) {
-//    return retrieveScimUsers(configId, acceptHeader, null);
-//  }
+  @Deprecated
+  public static List<GrouperScim2User> retrieveScimUsers(String configId, String acceptHeader) {
+    ScimSettings scimSettings = new ScimSettings();
+    scimSettings.setAcceptHeader(acceptHeader);
+    return retrieveScimUsers(scimSettings, configId);
+  }
 
+  /**
+   * @deprecated
+   */
+  @Deprecated
+  public static List<GrouperScim2User> retrieveScimUsers(String configId, String acceptHeader, String orgName) {
+    ScimSettings scimSettings = new ScimSettings();
+    scimSettings.setAcceptHeader(acceptHeader);
+    scimSettings.setOrgName(orgName);
+    return retrieveScimUsers(scimSettings, configId);
+  }
+  
   /**
    * retrieve all users
    * @return the results
    */
-  public static List<GrouperScim2User> retrieveScimUsers(String configId, ScimSettings scimSettings) {
+  public static List<GrouperScim2User> retrieveScimUsers(ScimSettings scimSettings, String configId) {
 
     Map<String, Object> debugMap = new LinkedHashMap<String, Object>();
 
@@ -993,7 +1052,18 @@ public class GrouperScim2ApiCommands {
 
   }
 
+  /**
+   * @deprecated
+   */
+  @Deprecated
+  public static void deleteScimUser(String configId, String acceptHeader,
+      String userId, String orgName) {
+    ScimSettings scimSettings = new ScimSettings();
+    scimSettings.setAcceptHeader(acceptHeader);
+    scimSettings.setOrgName(orgName);
+    deleteScimUser(configId, userId, scimSettings);
 
+  }
 
   public static void deleteScimUser(String configId, String userId, ScimSettings scimSettings) {
     Map<String, Object> debugMap = new LinkedHashMap<String, Object>();
@@ -1019,7 +1089,17 @@ public class GrouperScim2ApiCommands {
     }
   }
 
-
+  /**
+   * @deprecated
+   */
+  @Deprecated
+  public static GrouperScim2Group createScimGroup(String configId, String acceptHeader,
+      GrouperScim2Group grouperScimGroup, Set<String> fieldsToUpdate) {
+    ScimSettings scimSettings = new ScimSettings();
+    scimSettings.setAcceptHeader(acceptHeader);
+    return createScimGroup(configId, grouperScimGroup, fieldsToUpdate, scimSettings);
+  }
+  
   /**
    * create a group
    * @param grouperScimGroup
@@ -1059,7 +1139,17 @@ public class GrouperScim2ApiCommands {
   
   }
 
-
+  /**
+   * @deprecated
+   */
+  @Deprecated
+  public static void deleteScimGroup(String configId, String acceptHeader,
+      String groupId) {
+    ScimSettings scimSettings = new ScimSettings();
+    scimSettings.setAcceptHeader(acceptHeader);
+    deleteScimGroup(configId, groupId, scimSettings);
+  }
+  
   public static void deleteScimGroup(String configId, String groupId, ScimSettings scimSettings) {
     Map<String, Object> debugMap = new LinkedHashMap<String, Object>();
   
@@ -1084,10 +1174,27 @@ public class GrouperScim2ApiCommands {
     }
   }
 
-//  public static GrouperScim2Group retrieveScimGroup(String configId, String acceptHeader, String fieldName, String fieldValue) {
-//    return retrieveScimGroup(configId, fieldName, fieldValue, null);
-//  }
+  /**
+   * @deprecated
+   */
+  @Deprecated
+  public static GrouperScim2Group retrieveScimGroup(String configId, String acceptHeader, String fieldName, String fieldValue) {
+    ScimSettings scimSettings = new ScimSettings();
+    scimSettings.setAcceptHeader(acceptHeader);
+    return retrieveScimGroup(configId, fieldName, fieldValue, null, scimSettings);
+  }
 
+  /**
+   * @deprecated
+   */
+  @Deprecated
+  public static GrouperScim2Group retrieveScimGroup(String configId, String acceptHeader, String fieldName,
+      String fieldValue, Map<String, Set<String>> groupIdToMembershipEntityIds) {
+    ScimSettings scimSettings = new ScimSettings();
+    scimSettings.setAcceptHeader(acceptHeader);
+    return retrieveScimGroup(configId, fieldName, fieldValue, groupIdToMembershipEntityIds, scimSettings);
+  }
+  
   /**
    * @param configId
    * @param fieldName id or userPrincipalName
@@ -1166,7 +1273,18 @@ public class GrouperScim2ApiCommands {
   
   }
 
+  /**
+   * @deprecated
+   */
+  @Deprecated
+  public static void createScimMemberships(String configId, String acceptHeader,
+      String groupId, Set<String> userIds) {
+    ScimSettings scimSettings = new ScimSettings();
+    scimSettings.setAcceptHeader(acceptHeader);
+    createScimMemberships(configId, groupId, userIds, scimSettings);
 
+  }
+  
   /**
    * create membership
    * @param groupId
@@ -1242,7 +1360,18 @@ public class GrouperScim2ApiCommands {
 
   }
 
+  /**
+   * @deprecated
+   */
+  @Deprecated
+  public static void deleteScimMemberships(String configId, String acceptHeader,
+      String groupId, Set<String> userIds) {
+    ScimSettings scimSettings = new ScimSettings();
+    scimSettings.setAcceptHeader(acceptHeader);
+    deleteScimMemberships(configId, groupId, userIds, scimSettings);
 
+  }
+  
   /**
    * delete membership
    * @param groupId
@@ -1348,8 +1477,19 @@ public class GrouperScim2ApiCommands {
     }
   
   }
-
-
+  
+  /**
+   * @deprecated
+   */
+  @Deprecated
+  public static void replaceScimMemberships(String configId, String acceptHeader,
+      String groupId, Set<String> userIds) {
+    ScimSettings scimSettings = new ScimSettings();
+    scimSettings.setAcceptHeader(acceptHeader);
+    replaceScimMemberships(configId, groupId, userIds, scimSettings);
+ 
+  }
+  
   /**
    * replace memberships
    * @param groupId
@@ -1425,16 +1565,31 @@ public class GrouperScim2ApiCommands {
   
   }
   
-//  public static List<GrouperScim2Group> retrieveScimGroups(String configId, String acceptHeader) {
-//    return retrieveScimGroups(configId, acceptHeader, null);
-//  }
-
-
+  /**
+   * @deprecated
+   */
+  @Deprecated
+  public static List<GrouperScim2Group> retrieveScimGroups(String configId, String acceptHeader) {
+    ScimSettings scimSettings = new ScimSettings();
+    scimSettings.setAcceptHeader(acceptHeader);
+    return retrieveScimGroups(scimSettings, configId, null);
+  }
+  
+  /**
+   * @deprecated
+   */
+  @Deprecated
+  public static List<GrouperScim2Group> retrieveScimGroups(String configId, String acceptHeader, Map<String, Set<String>> groupIdToMembershipEntityIds) {
+    ScimSettings scimSettings = new ScimSettings();
+    scimSettings.setAcceptHeader(acceptHeader);
+    return retrieveScimGroups(scimSettings, configId, groupIdToMembershipEntityIds);
+  }
+  
   /**
    * retrieve all groups
    * @return the results
    */
-  public static List<GrouperScim2Group> retrieveScimGroups(String configId, Map<String, Set<String>> groupIdToMembershipEntityIds, ScimSettings scimSettings) {
+  public static List<GrouperScim2Group> retrieveScimGroups(ScimSettings scimSettings, String configId, Map<String, Set<String>> groupIdToMembershipEntityIds) {
   
     Map<String, Object> debugMap = new LinkedHashMap<String, Object>();
 

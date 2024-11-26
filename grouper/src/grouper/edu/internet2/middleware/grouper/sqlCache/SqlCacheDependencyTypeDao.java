@@ -112,6 +112,14 @@ public class SqlCacheDependencyTypeDao {
         sqlCacheDependencyTypesToStore.add(sqlCacheDependencyType);
       }
       
+      //  if (!names.contains("abac")) {
+      //    SqlCacheDependencyType sqlCacheDependencyType = new SqlCacheDependencyType();
+      //    sqlCacheDependencyType.setDependencyCategory("mshipHistory");
+      //    sqlCacheDependencyType.setName("mshipHistory_abac");
+      //    sqlCacheDependencyType.setDescription("Dependency to keep track of sql cache membership history for objects used with ABAC");
+      //    sqlCacheDependencyTypesToStore.add(sqlCacheDependencyType);
+      //  }
+      
       if (sqlCacheDependencyTypesToStore.size() > 0) {
         SqlCacheDependencyTypeDao.store(sqlCacheDependencyTypesToStore);
       }

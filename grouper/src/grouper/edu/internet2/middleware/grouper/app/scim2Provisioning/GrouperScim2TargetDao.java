@@ -89,7 +89,7 @@ public class GrouperScim2TargetDao extends GrouperProvisionerTargetDaoBase {
       scimSettings.setScimContentType(scimConfiguration.getScimContentType());
 
       List<GrouperScim2Group> grouperScim2Groups = GrouperScim2ApiCommands
-          .retrieveScimGroups(scimConfiguration.getBearerTokenExternalSystemConfigId(), groupIdToMembershipEntityIds, scimSettings);
+          .retrieveScimGroups(scimSettings, scimConfiguration.getBearerTokenExternalSystemConfigId(), groupIdToMembershipEntityIds);
 
       for (GrouperScim2Group grouperScim2Group : grouperScim2Groups) {
         
@@ -127,7 +127,7 @@ public class GrouperScim2TargetDao extends GrouperProvisionerTargetDaoBase {
       scimSettings.setScimContentType(scimConfiguration.getScimContentType());
 
       List<GrouperScim2User> grouperScim2Users = GrouperScim2ApiCommands
-          .retrieveScimUsers(scimConfiguration.getBearerTokenExternalSystemConfigId(), scimSettings);
+          .retrieveScimUsers(scimSettings, scimConfiguration.getBearerTokenExternalSystemConfigId());
 
       Map<ProvisioningEntity, Object> targetEntityToNativeEntity = new HashMap<>();
       
@@ -314,7 +314,7 @@ public class GrouperScim2TargetDao extends GrouperProvisionerTargetDaoBase {
         
         scimSettings.setOrgName(orgInUrl);
 
-        List<GrouperScim2User> grouperScim2Users = GrouperScim2ApiCommands.retrieveScimUsers(scimConfiguration.getBearerTokenExternalSystemConfigId(), scimSettings);
+        List<GrouperScim2User> grouperScim2Users = GrouperScim2ApiCommands.retrieveScimUsers(scimSettings, scimConfiguration.getBearerTokenExternalSystemConfigId());
 
         List<ProvisioningEntity> targetEntities = new ArrayList<>();
         
