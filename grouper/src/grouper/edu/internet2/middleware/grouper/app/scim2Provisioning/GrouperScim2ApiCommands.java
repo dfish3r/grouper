@@ -40,7 +40,7 @@ public class GrouperScim2ApiCommands {
     
     Map<String, ProvisioningObjectChangeAction> fieldToAction = new HashMap<String, ProvisioningObjectChangeAction>();
 //    fieldToAction.put("manager_uuid", ProvisioningObjectChangeAction.update);
-    fieldToAction.put("department_uuid", ProvisioningObjectChangeAction.delete);
+    fieldToAction.put("department_uuid", ProvisioningObjectChangeAction.update);
 //    fieldToAction.put("emailValue", ProvisioningObjectChangeAction.update);
     
 //    scimUser.setEmailValue("tmurra26@test.edu");
@@ -53,7 +53,7 @@ public class GrouperScim2ApiCommands {
     scimUser.getCustomAttributeNameToJsonPointer().put("department_uuid", "/urn:ietf:params:scim:schemas:extension:servicenow:2.0:User/department/value");
 //    scimUser.getCustomAttributes().put("manager_uuid", "42d96d076fbce200db62358fae3ee452");
 //    scimUser.getCustomAttributes().remove("department_uuid");
-//    scimUser.getCustomAttributes().put("department_uuid", "f7852b636f53150014ddc6012e3ee40a");
+    scimUser.getCustomAttributes().put("department_uuid", null);
 //    String scimNamePatchStrategy = "qualified";
     
     ScimSettings scimSettings = new ScimSettings();
@@ -543,6 +543,15 @@ public class GrouperScim2ApiCommands {
         if (grouperScim2User.getCustomAttributeNameToJsonPointer() != null && grouperScim2User.getCustomAttributeNameToJsonPointer().containsKey(fieldToUpdate)) {
           
           String jsonPointer = grouperScim2User.getCustomAttributeNameToJsonPointer().get(fieldToUpdate);
+          Object value = grouperScim2User.getCustomAttributes().get(fieldToUpdate);
+
+          // if we are updating to null just remove it
+          if (provisioningObjectChangeAction == ProvisioningObjectChangeAction.update && value == null) {
+            operationNode.put("op", "remove");
+            provisioningObjectChangeAction = ProvisioningObjectChangeAction.delete;
+
+          }
+          
           if (provisioningObjectChangeAction == ProvisioningObjectChangeAction.delete) {
             // we are going from: /urn:ietf:params:scim:schemas:extension:servicenow:2.0:User/department/value
             //                to: urn:ietf:params:scim:schemas:extension:servicenow:2.0:User:department.value
@@ -560,7 +569,6 @@ public class GrouperScim2ApiCommands {
             
           } else {
           
-            Object value = grouperScim2User.getCustomAttributes().get(fieldToUpdate);
             ObjectNode valueNode = GrouperUtil.jsonJacksonNode();
             operationNode.set("value", valueNode);
             GrouperUtil.jsonJacksonAssignJsonPointerString(valueNode, jsonPointer, value);
