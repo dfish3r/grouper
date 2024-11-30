@@ -13,6 +13,7 @@ import org.apache.commons.jexl3.internal.Engine;
 import org.apache.commons.jexl3.parser.ASTAndNode;
 import org.apache.commons.jexl3.parser.ASTArguments;
 import org.apache.commons.jexl3.parser.ASTArrayLiteral;
+import org.apache.commons.jexl3.parser.ASTAssignment;
 import org.apache.commons.jexl3.parser.ASTEQNode;
 import org.apache.commons.jexl3.parser.ASTERNode;
 import org.apache.commons.jexl3.parser.ASTFunctionNode;
@@ -933,7 +934,7 @@ public class GrouperLoaderJexlScriptFullSync extends OtherJobBase {
 
       
       
-    } else if (jexlNode instanceof ASTEQNode && 2==jexlNode.jjtGetNumChildren() && jexlNode.jjtGetChild(1) instanceof ASTNullLiteral) {
+    } else if ((jexlNode instanceof ASTEQNode || jexlNode instanceof ASTAssignment) && 2==jexlNode.jjtGetNumChildren() && jexlNode.jjtGetChild(1) instanceof ASTNullLiteral) {
       if (!(jexlNode.jjtGetChild(0) instanceof ASTIdentifier)) {
         throw new RuntimeException("Not expecting node type: " + jexlNode.jjtGetChild(0).getClass().getName() 
             + ", children: " + jexlNode.jjtGetChild(0).jjtGetNumChildren());
@@ -950,12 +951,12 @@ public class GrouperLoaderJexlScriptFullSync extends OtherJobBase {
         .append(" '").append(GrouperUtil.xmlEscape(leftPart.getName())).append("' ").append(GrouperTextContainer.textOrNull("jexlAnalysisHasRowAttributeValue2"))
         .append(" null");
 
-    } else if (jexlNode instanceof ASTEQNode && 2==jexlNode.jjtGetNumChildren()) {
+    } else if ((jexlNode instanceof ASTEQNode || jexlNode instanceof ASTAssignment) && 2==jexlNode.jjtGetNumChildren()) {
       if (!(jexlNode.jjtGetChild(0) instanceof ASTIdentifier)) {
         throw new RuntimeException("Not expecting node type: " + jexlNode.jjtGetChild(0).getClass().getName() 
             + ", children: " + jexlNode.jjtGetChild(0).jjtGetNumChildren());
       }
-      if ((jexlNode instanceof ASTEQNode) && !(jexlNode.jjtGetChild(1) instanceof ASTIdentifier) && !(jexlNode.jjtGetChild(1) instanceof ASTNumberLiteral)
+      if (!(jexlNode.jjtGetChild(1) instanceof ASTIdentifier) && !(jexlNode.jjtGetChild(1) instanceof ASTNumberLiteral)
           && !(jexlNode.jjtGetChild(1) instanceof ASTStringLiteral) ) {
         throw new RuntimeException("Not expecting node type: " + jexlNode.jjtGetChild(1).getClass().getName() 
             + ", children: " + jexlNode.jjtGetChild(1).jjtGetNumChildren());

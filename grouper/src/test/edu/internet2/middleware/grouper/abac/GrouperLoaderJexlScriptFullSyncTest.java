@@ -32,7 +32,7 @@ public class GrouperLoaderJexlScriptFullSyncTest extends GrouperTest {
    * @param args
    */
   public static void main(String[] args) {
-    TestRunner.run(new GrouperLoaderJexlScriptFullSyncTest("testJexlShouldntHaveGroup"));
+    TestRunner.run(new GrouperLoaderJexlScriptFullSyncTest("testRowAttributeAssignmentStringOneEquals"));
   }
   
   /**
@@ -274,6 +274,36 @@ public class GrouperLoaderJexlScriptFullSyncTest extends GrouperTest {
         .assignAttributeDefName(attributeDefNameMarker).save();
     
     attributeAssign.getAttributeValueDelegate().assignValueString(attributeDefNameScript.getName(), "entity.hasRow('affiliation', 'affiliationCode==staff')");
+    GrouperLoader.runOnceByJobName(grouperSession, "CHANGE_LOG_changeLogTempToChangeLog");
+    GrouperLoader.runOnceByJobName(GrouperSession.staticGrouperSession(), "OTHER_JOB_grouperLoaderJexlScriptFullSync");
+    
+    Subject testSubject0 = SubjectFinder.findByIdAndSource("test.subject.0", "jdbc", true);
+    Member member0 = MemberFinder.findBySubject(grouperSession, testSubject0, true);
+    Subject testSubject2 = SubjectFinder.findByIdAndSource("test.subject.2", "jdbc", true);
+    Member member2 = MemberFinder.findBySubject(grouperSession, testSubject2, true);
+    
+    Set<Member> members = testGroup.getMembers();
+    assertEquals(2, members.size());
+    
+    assertTrue(members.contains(member0));
+    assertTrue(members.contains(member2));
+    
+  }
+  
+  public void testRowAttributeAssignmentStringOneEquals() {
+    setupDataFields();
+    
+    GrouperSession grouperSession = GrouperSession.startRootSession();
+    
+    Group testGroup = new GroupSave().assignName("test:testGroup").assignCreateParentStemsIfNotExist(true).save();
+    
+    AttributeDefName attributeDefNameMarker = AttributeDefNameFinder.findByName("etc:attribute:abacJexlScript:grouperJexlScriptMarker", true);
+    AttributeDefName attributeDefNameScript = AttributeDefNameFinder.findByName("etc:attribute:abacJexlScript:grouperJexlScriptJexlScript", true);
+    
+    AttributeAssign attributeAssign = new AttributeAssignSave(grouperSession).assignOwnerGroup(testGroup)
+        .assignAttributeDefName(attributeDefNameMarker).save();
+    
+    attributeAssign.getAttributeValueDelegate().assignValueString(attributeDefNameScript.getName(), "entity.hasRow('affiliation', 'affiliationCode=staff')");
     GrouperLoader.runOnceByJobName(grouperSession, "CHANGE_LOG_changeLogTempToChangeLog");
     GrouperLoader.runOnceByJobName(GrouperSession.staticGrouperSession(), "OTHER_JOB_grouperLoaderJexlScriptFullSync");
     
