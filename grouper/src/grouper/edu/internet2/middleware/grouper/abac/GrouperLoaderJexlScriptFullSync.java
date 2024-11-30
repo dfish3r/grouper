@@ -557,7 +557,17 @@ public class GrouperLoaderJexlScriptFullSync extends OtherJobBase {
 
       if (astArguments.jjtGetNumChildren() == 1) {
 
-        grouperJexlScriptPart.getWhereClause().append("exists (select 1 from grouper_data_field_assign gdfa where gdfa.data_field_internal_id = ? and gdfa.member_internal_id = gm.internal_id and gdfa.value_integer = 1) ");
+        GrouperDataFieldWrapper grouperDataFieldWrapper = grouperJexlScriptAnalysis.getGrouperDataEngine().getGrouperDataProviderIndex().getFieldWrapperByLowerAlias().get(attributeAlias.toLowerCase());
+        
+        GrouperDataFieldConfig grouperDataFieldConfig = grouperJexlScriptAnalysis.getGrouperDataEngine().getFieldConfigByAlias().get(attributeAlias.toLowerCase());
+        if (grouperDataFieldConfig == null) {
+          throw new RuntimeException("Data field '" + attributeAlias + "' not found!");
+        }
+        if (grouperDataFieldConfig.getFieldDataType() == GrouperDataFieldType.bool) { 
+          grouperJexlScriptPart.getWhereClause().append("exists (select 1 from grouper_data_field_assign gdfa where gdfa.data_field_internal_id = ? and gdfa.member_internal_id = gm.internal_id and gdfa.value_integer = 1) ");
+        } else {
+          grouperJexlScriptPart.getWhereClause().append("exists (select 1 from grouper_data_field_assign gdfa where gdfa.data_field_internal_id = ? and gdfa.member_internal_id = gm.internal_id) ");
+        }
         grouperJexlScriptPart.getArguments().add(new MultiKey("attribute", attributeAlias));
 
         grouperJexlScriptPart.getDisplayDescription().append(GrouperTextContainer.textOrNull("jexlAnalysisHasAttribute"))

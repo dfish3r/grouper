@@ -32,7 +32,7 @@ public class GrouperLoaderJexlScriptFullSyncTest extends GrouperTest {
    * @param args
    */
   public static void main(String[] args) {
-    TestRunner.run(new GrouperLoaderJexlScriptFullSyncTest("testRowAttributeAssignmentStringOneEquals"));
+    TestRunner.run(new GrouperLoaderJexlScriptFullSyncTest("testSimpleHasAttributeAssignmentString"));
   }
   
   /**
@@ -151,6 +151,40 @@ public class GrouperLoaderJexlScriptFullSyncTest extends GrouperTest {
     
     Set<Member> members = testGroup.getMembers();
     assertEquals(2, members.size());
+    
+    assertTrue(members.contains(member0));
+    assertTrue(members.contains(member1));
+    
+  }
+  
+  public void testSimpleHasAttributeAssignmentString() {
+    setupDataFields();
+    
+    GrouperSession grouperSession = GrouperSession.startRootSession();
+    
+    Group testGroup = new GroupSave().assignName("test:testGroup").assignCreateParentStemsIfNotExist(true).save();
+    
+    AttributeDefName attributeDefNameMarker = AttributeDefNameFinder.findByName("etc:attribute:abacJexlScript:grouperJexlScriptMarker", true);
+    AttributeDefName attributeDefNameScript = AttributeDefNameFinder.findByName("etc:attribute:abacJexlScript:grouperJexlScriptJexlScript", true);
+    
+    AttributeAssign attributeAssign = new AttributeAssignSave(grouperSession).assignOwnerGroup(testGroup)
+        .assignAttributeDefName(attributeDefNameMarker).save();
+    
+    attributeAssign.getAttributeValueDelegate().assignValueString(attributeDefNameScript.getName(), "entity.hasAttribute('org')");
+    GrouperLoader.runOnceByJobName(grouperSession, "CHANGE_LOG_changeLogTempToChangeLog");
+    GrouperLoader.runOnceByJobName(GrouperSession.staticGrouperSession(), "OTHER_JOB_grouperLoaderJexlScriptFullSync");
+    
+    Subject testSubject0 = SubjectFinder.findByIdAndSource("test.subject.0", "jdbc", true);
+    Member member0 = MemberFinder.findBySubject(grouperSession, testSubject0, true);
+    Subject testSubject1 = SubjectFinder.findByIdAndSource("test.subject.1", "jdbc", true);
+    Member member1 = MemberFinder.findBySubject(grouperSession, testSubject1, true);
+    Subject testSubject2 = SubjectFinder.findByIdAndSource("test.subject.2", "jdbc", true);
+    Member member2 = MemberFinder.findBySubject(grouperSession, testSubject2, true);
+    Subject testSubject3 = SubjectFinder.findByIdAndSource("test.subject.3", "jdbc", true);
+    Member member3 = MemberFinder.findBySubject(grouperSession, testSubject3, true);
+    
+    Set<Member> members = testGroup.getMembers();
+    assertEquals(4, members.size());
     
     assertTrue(members.contains(member0));
     assertTrue(members.contains(member1));
