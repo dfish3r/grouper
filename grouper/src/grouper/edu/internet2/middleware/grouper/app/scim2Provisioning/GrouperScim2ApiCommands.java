@@ -40,24 +40,24 @@ public class GrouperScim2ApiCommands {
     
     Map<String, ProvisioningObjectChangeAction> fieldToAction = new HashMap<String, ProvisioningObjectChangeAction>();
 //    fieldToAction.put("manager_uuid", ProvisioningObjectChangeAction.update);
-//    fieldToAction.put("department_uuid", ProvisioningObjectChangeAction.update);
-    fieldToAction.put("emailValue", ProvisioningObjectChangeAction.update);
+    fieldToAction.put("department_uuid", ProvisioningObjectChangeAction.delete);
+//    fieldToAction.put("emailValue", ProvisioningObjectChangeAction.update);
     
-    scimUser.setEmailValue("tmurra26@test.edu");
+//    scimUser.setEmailValue("tmurra26@test.edu");
     
-//    scimUser.setCustomAttributes(new HashMap<>());
-//    scimUser.setCustomAttributeNameToJsonPointer(new HashMap<>());
+    scimUser.setCustomAttributes(new HashMap<>());
+    scimUser.setCustomAttributeNameToJsonPointer(new HashMap<>());
     
     ///urn:ietf:params:scim:schemas:extension:servicenow:2.0:User/manager/value
 //    scimUser.getCustomAttributeNameToJsonPointer().put("manager_uuid", "/urn:ietf:params:scim:schemas:extension:servicenow:2.0:User/manager/value");
-//    scimUser.getCustomAttributeNameToJsonPointer().put("department_uuid", "/urn:ietf:params:scim:schemas:extension:servicenow:2.0:User/department/value");
+    scimUser.getCustomAttributeNameToJsonPointer().put("department_uuid", "/urn:ietf:params:scim:schemas:extension:servicenow:2.0:User/department/value");
 //    scimUser.getCustomAttributes().put("manager_uuid", "42d96d076fbce200db62358fae3ee452");
+//    scimUser.getCustomAttributes().remove("department_uuid");
 //    scimUser.getCustomAttributes().put("department_uuid", "f7852b636f53150014ddc6012e3ee40a");
-    
-    String scimNamePatchStrategy = "qualified";
+//    String scimNamePatchStrategy = "qualified";
     
     ScimSettings scimSettings = new ScimSettings();
-    scimSettings.setScimEmailPatchStrategy("pathEmailsQualified");
+//    scimSettings.setScimEmailPatchStrategy("pathEmailsQualified");
 //    scimSettings.setOrgName(orgNameThreadLocal.get());
 //    scimSettings.setScimNamePatchStrategy(scimNamePatchStrategy);
 //    scimSettings.setAcceptHeader(scimConfiguration.getAcceptHeader());
@@ -543,11 +543,28 @@ public class GrouperScim2ApiCommands {
         if (grouperScim2User.getCustomAttributeNameToJsonPointer() != null && grouperScim2User.getCustomAttributeNameToJsonPointer().containsKey(fieldToUpdate)) {
           
           String jsonPointer = grouperScim2User.getCustomAttributeNameToJsonPointer().get(fieldToUpdate);
-          Object value = grouperScim2User.getCustomAttributes().get(fieldToUpdate);
-          ObjectNode valueNode = GrouperUtil.jsonJacksonNode();
-          operationNode.set("value", valueNode);
-          GrouperUtil.jsonJacksonAssignJsonPointerString(valueNode, jsonPointer, value);
+          if (provisioningObjectChangeAction == ProvisioningObjectChangeAction.delete) {
+            // we are going from: /urn:ietf:params:scim:schemas:extension:servicenow:2.0:User/department/value
+            //                to: urn:ietf:params:scim:schemas:extension:servicenow:2.0:User:department.value
+            String path = jsonPointer;
+            // pop off first slash
+            if (path.startsWith("/")) {
+              path = path.substring(1);
+            }
+            if (path.contains(":")) {
+              int slashIndex = path.indexOf("/");
+              path = path.substring(0, slashIndex) + ":" + path.substring(slashIndex+1, path.length());
+            }
+            path = StringUtils.replace(path, "/", ".");
+            operationNode.put("path", path);
+            
+          } else {
           
+            Object value = grouperScim2User.getCustomAttributes().get(fieldToUpdate);
+            ObjectNode valueNode = GrouperUtil.jsonJacksonNode();
+            operationNode.set("value", valueNode);
+            GrouperUtil.jsonJacksonAssignJsonPointerString(valueNode, jsonPointer, value);
+          }          
         } else {
           operationNode.put("path", fieldToUpdate);
         }
