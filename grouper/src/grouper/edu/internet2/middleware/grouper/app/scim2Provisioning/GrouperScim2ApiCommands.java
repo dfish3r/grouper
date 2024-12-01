@@ -256,6 +256,14 @@ public class GrouperScim2ApiCommands {
       //    ]
       // }
 
+      debugMap.put("id", grouperScim2User.getId());
+      
+      boolean shouldLog = GrouperScim2Log.isLog();
+      if (shouldLog) {
+        debugMap.put("jsonPointers", GrouperUtil.length(grouperScim2User.getCustomAttributeNameToJsonPointer()));
+      }
+
+      
       ObjectNode jsonToSend = GrouperUtil.jsonJacksonNode();
       
       {
@@ -472,7 +480,12 @@ public class GrouperScim2ApiCommands {
         
       }
 
+      int fieldIndex = 0;
       for (String fieldToUpdate : fieldsToUpdate.keySet()) {
+        
+        if (shouldLog) {
+          debugMap.put("field_" + fieldIndex, fieldToUpdate);
+        }
         
         if (StringUtils.equals(fieldToUpdate, "emailValue") || StringUtils.equals(fieldToUpdate, "emailType") || StringUtils.equals(fieldToUpdate, "emailValue2") || StringUtils.equals(fieldToUpdate, "emailType2")) {
           continue;
@@ -483,6 +496,10 @@ public class GrouperScim2ApiCommands {
         }
         
         ProvisioningObjectChangeAction provisioningObjectChangeAction = fieldsToUpdate.get(fieldToUpdate);
+
+        if (shouldLog) {
+          debugMap.put("action_" + fieldIndex, provisioningObjectChangeAction);
+        }
         
         ObjectNode operationNode = GrouperUtil.jsonJacksonNode();
         
@@ -539,16 +556,29 @@ public class GrouperScim2ApiCommands {
             fieldToUpdate = "name.givenName";
           }
         }
-        
+
+        if (shouldLog && grouperScim2User.getCustomAttributeNameToJsonPointer() != null) {
+          debugMap.put("pointer_" + fieldIndex, grouperScim2User.getCustomAttributeNameToJsonPointer().get(fieldToUpdate));
+        }
+
         if (grouperScim2User.getCustomAttributeNameToJsonPointer() != null && grouperScim2User.getCustomAttributeNameToJsonPointer().containsKey(fieldToUpdate)) {
           
           String jsonPointer = grouperScim2User.getCustomAttributeNameToJsonPointer().get(fieldToUpdate);
-          Object value = grouperScim2User.getCustomAttributes().get(fieldToUpdate);
+          Object value = grouperScim2User.getCustomAttributes() == null ? null : grouperScim2User.getCustomAttributes().get(fieldToUpdate);
 
+          if (shouldLog) {
+            debugMap.put("value_" + fieldIndex, value);
+          }
+
+          
           // if we are updating to null just remove it
           if (provisioningObjectChangeAction == ProvisioningObjectChangeAction.update && value == null) {
             operationNode.put("op", "remove");
             provisioningObjectChangeAction = ProvisioningObjectChangeAction.delete;
+
+            if (shouldLog) {
+              debugMap.put("switch_" + fieldIndex, provisioningObjectChangeAction);
+            }
 
           }
           
@@ -566,7 +596,11 @@ public class GrouperScim2ApiCommands {
             }
             path = StringUtils.replace(path, "/", ".");
             operationNode.put("path", path);
-            
+
+            if (shouldLog) {
+              debugMap.put("path_" + fieldIndex, provisioningObjectChangeAction);
+            }
+
           } else {
           
             ObjectNode valueNode = GrouperUtil.jsonJacksonNode();
@@ -578,6 +612,7 @@ public class GrouperScim2ApiCommands {
         }
        
         operationsNode.add(operationNode);
+        fieldIndex++;
         
       }
       
@@ -689,10 +724,36 @@ public class GrouperScim2ApiCommands {
         
         if (grouperScim2Group.getCustomAttributeNameToJsonPointer() != null && grouperScim2Group.getCustomAttributeNameToJsonPointer().containsKey(fieldToUpdate)) {
           String jsonPointer = grouperScim2Group.getCustomAttributeNameToJsonPointer().get(fieldToUpdate);
-          Object value = grouperScim2Group.getCustomAttributes().get(fieldToUpdate);
-          ObjectNode valueNode = GrouperUtil.jsonJacksonNode();
-          operationNode.set("value", valueNode);
-          GrouperUtil.jsonJacksonAssignJsonPointerString(valueNode, jsonPointer, value);
+          Object value = grouperScim2Group.getCustomAttributes() == null ? null : grouperScim2Group.getCustomAttributes().get(fieldToUpdate);
+
+          // if we are updating to null just remove it
+          if (provisioningObjectChangeAction == ProvisioningObjectChangeAction.update && value == null) {
+            operationNode.put("op", "remove");
+            provisioningObjectChangeAction = ProvisioningObjectChangeAction.delete;
+
+          }
+
+          if (provisioningObjectChangeAction == ProvisioningObjectChangeAction.delete) {
+            // we are going from: /urn:ietf:params:scim:schemas:extension:servicenow:2.0:User/department/value
+            //                to: urn:ietf:params:scim:schemas:extension:servicenow:2.0:User:department.value
+            String path = jsonPointer;
+            // pop off first slash
+            if (path.startsWith("/")) {
+              path = path.substring(1);
+            }
+            if (path.contains(":")) {
+              int slashIndex = path.indexOf("/");
+              path = path.substring(0, slashIndex) + ":" + path.substring(slashIndex+1, path.length());
+            }
+            path = StringUtils.replace(path, "/", ".");
+            operationNode.put("path", path);
+
+          } else {
+
+            ObjectNode valueNode = GrouperUtil.jsonJacksonNode();
+            operationNode.set("value", valueNode);
+            GrouperUtil.jsonJacksonAssignJsonPointerString(valueNode, jsonPointer, value);
+          }
           
         } else {
           operationNode.put("path", fieldToUpdate);
