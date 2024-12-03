@@ -260,12 +260,12 @@ public class SqlCacheFullSyncDaemon extends OtherJobBase {
     
     // STEP 5 - delete from grouper_sql_cache_mship where rows have invalid references
     {
-      int count = new GcDbAccess().sql("delete from grouper_sql_cache_mship where sql_cache_group_internal_id not in (select internal_id from grouper_sql_cache_group where disabled_on is null)").executeSql();
+      int count = new GcDbAccess().sql("delete from grouper_sql_cache_mship gscm where not exists (select 1 from grouper_sql_cache_group gscg where gscg.internal_id = gscm.sql_cache_group_internal_id and gscg.disabled_on is null)").executeSql();
       if (theOtherJobInput != null) {
         theOtherJobInput.getHib3GrouperLoaderLog().addDeleteCount(count);
       }
       
-      count = new GcDbAccess().sql("delete from grouper_sql_cache_mship where member_internal_id not in (select source_internal_id from grouper_pit_members where active='T')").executeSql();
+      count = new GcDbAccess().sql("delete from grouper_sql_cache_mship gscm where not exists (select 1 from grouper_pit_members gpm where gpm.source_internal_id = gscm.member_internal_id and gpm.active = 'T')").executeSql();
       if (theOtherJobInput != null) {
         theOtherJobInput.getHib3GrouperLoaderLog().addDeleteCount(count);
       }
