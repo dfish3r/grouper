@@ -10,6 +10,36 @@ CREATE TABLE grouper_ddl
 
 CREATE UNIQUE INDEX grouper_ddl_object_name_idx ON grouper_ddl (object_name);
 
+CREATE FUNCTION grouper_to_timestamp(input BIGINT)
+  RETURNS DATETIME
+  DETERMINISTIC 
+  NO SQL
+  BEGIN
+    DECLARE timestamp_value BIGINT;
+
+    IF input > 100000000000000 THEN
+      SET timestamp_value = input / 1000000;
+    ELSE
+      SET timestamp_value = input / 1000;
+    END IF;
+
+    RETURN FROM_UNIXTIME(timestamp_value);
+ END; -- function
+  
+CREATE FUNCTION grouper_to_timestamp_utc(input BIGINT)
+  RETURNS DATETIME
+  DETERMINISTIC
+  NO SQL
+  BEGIN
+    DECLARE timestamp_value BIGINT;
+    IF input > 100000000000000 THEN
+      SET timestamp_value = input / 1000000;
+    ELSE
+      SET timestamp_value = input / 1000;
+    END IF;
+    RETURN CONVERT_TZ(FROM_UNIXTIME(timestamp_value), @@session.time_zone,'+00:00');
+ END; -- function
+
 CREATE TABLE grouper_composites
 (
     id VARCHAR(40) NOT NULL,

@@ -18,10 +18,15 @@
  */
 package edu.internet2.middleware.grouper.ddl;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.io.Reader;
 import java.io.StringWriter;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -45,7 +50,6 @@ import org.apache.commons.lang.exception.ExceptionUtils;
 import org.apache.commons.logging.Log;
 import org.apache.tools.ant.DefaultLogger;
 import org.apache.tools.ant.Project;
-import org.apache.tools.ant.taskdefs.SQLExec;
 import org.hibernate.ObjectNotFoundException;
 import org.hibernate.internal.SessionImpl;
 import org.hibernate.type.StringType;
@@ -89,6 +93,7 @@ import edu.internet2.middleware.grouper.misc.GrouperStartup;
 import edu.internet2.middleware.grouper.misc.GrouperVersion;
 import edu.internet2.middleware.grouper.registry.RegistryInitializeSchema;
 import edu.internet2.middleware.grouper.util.GrouperUtil;
+import edu.internet2.middleware.grouperClient.jdbc.GcDbAccess;
 import edu.internet2.middleware.grouperClient.util.GrouperClientUtils;
 import edu.internet2.middleware.morphString.Morph;
 
@@ -323,7 +328,17 @@ public class GrouperDdlUtils {
    * @param args
    */
   public static void main(String[] args) {
-    GrouperStartup.startup();
+    
+
+    String functionBegin = "CREATE FUNCTION IF NOT EXISTS";
+    String regex = "(?i)^" + functionBegin.replaceAll("\\s+", "\\\\s*") + ".*";
+    System.out.println(regex);
+    
+    String regex1 = "(?i)^\s*CREATE\s*FUNCTION\s*IF\s*NOT\s*EXISTS.*";
+//    
+    boolean matches = Pattern.matches(regex1, "CREATE   FUNCTION   IF   NOT   EXISTS    ");
+    System.out.println(matches);
+//    GrouperStartup.startup();
   }
   
   
@@ -500,7 +515,7 @@ public class GrouperDdlUtils {
     System.setErr(newOutErr);
     System.setOut(newOutErr);
     
-    SQLExec sqlExec = new SQLExec();
+//    SQLExec sqlExec = new SQLExec();
     
     boolean deleteScriptAfterward = false;
     
@@ -516,14 +531,6 @@ public class GrouperDdlUtils {
       }
       
     }
-    sqlExec.setSrc(scriptFile);
-    
-    
-    sqlExec.setDriver(driver);
-    sqlExec.setUrl(url);
-    sqlExec.setUserid(user);
-    sqlExec.setPassword(pass);
-
     Project project = new GrouperAntProject();
 
     //tell output where to go
@@ -532,13 +539,17 @@ public class GrouperDdlUtils {
     defaultLogger.setOutputPrintStream(newOutErr);
     project.addBuildListener(defaultLogger);
     String logMessage = null;
+    
+    
     try {
-      sqlExec.setProject(project);
-
-      sqlExec.execute();
-
+      InputStream inputStream = new FileInputStream(scriptFile);
+      InputStreamReader reader = new InputStreamReader(inputStream);
+      runStatements(reader, out);
       logMessage = "Script was executed successfully\n";
     } catch (Exception e) {
+      
+      newOutErr.print(e.getMessage());
+      
       String error = "Error running script: " + scriptFile.getAbsolutePath();
       logMessage = error + ", " + ExceptionUtils.getFullStackTrace(e) + "\n";
       if (fromUnitTest) {
@@ -791,6 +802,94 @@ public class GrouperDdlUtils {
   public static String runScriptFileIfShouldReturnString(File scriptFile, boolean runScript) {
     return runScriptFileIfShouldReturnString("grouper", scriptFile, runScript);
   }
+  
+  private static void runStatements(Reader reader, PrintStream out) throws IOException {
+    StringBuffer sql = new StringBuffer();
+
+    BufferedReader in = new BufferedReader(reader);
+    boolean keepformat = true;
+    String line;
+    boolean insideFunction = false;
+    while ((line = in.readLine()) != null) {
+      if (!keepformat) {
+        line = line.trim();
+      }
+      if (!keepformat) {
+        if (line.startsWith("//")) {
+          continue;
+        }
+        if (line.startsWith("--")) {
+          continue;
+        }
+      }
+      
+      {
+        String regex = "(?i)^\s*CREATE\s*FUNCTION.*";
+        boolean matches = Pattern.matches(regex, line);
+        if (matches) {
+          sql.append(line);
+          insideFunction = true;
+          continue;
+        }
+      }
+      
+      sql.append(keepformat ? "\n" : " ").append(line);
+
+      if (insideFunction) {
+        if (isPostgres()) {
+          String regex = "(?i)\\$\\$\\s*LANGUAGE\\s*plpgsql\\s*IMMUTABLE";
+          boolean matches = Pattern.compile(regex).matcher(line).find();
+          if (matches) {
+            insideFunction = false;
+          }
+        } else if (isOracle() || isMysql()) {
+          String regex = "(?i)END\\s*;\\s*--\\s*function.*";
+          boolean matches = Pattern.compile(regex).matcher(line).find();
+          if (matches) {
+            insideFunction = false;
+          }
+        }
+        if (!insideFunction) {          
+          execSQL(sql.toString(), out);
+          sql.replace(0, sql.length(), "");
+        }
+        continue;
+      }
+
+//    sql.append(keepformat ? "\n" : " ").append(line);
+
+      // SQL defines "--" as a comment to EOL
+      // and in Oracle it may contain a hint
+      // so we cannot just remove it, instead we must end it
+      if (!keepformat && line.contains("--")) {
+        sql.append("\n");
+      }
+      int lastDelimPos = lastDelimiterPosition(sql, line);
+      if (lastDelimPos > -1) {
+        execSQL(sql.substring(0, lastDelimPos), out);
+        sql.replace(0, sql.length(), "");
+      }
+    }
+  }
+  
+  private static void execSQL(String sql, PrintStream out) {
+    sql = StringUtils.trimToEmpty(sql);
+    out.println("SQL: "+sql);
+    int count = new GcDbAccess().connectionName("grouper").sql(sql).executeSql();
+  }
+  
+  /**
+   * SQL Statement delimiter
+   */
+  private static final String delimiter = ";";
+  
+  public static int lastDelimiterPosition(StringBuffer buf, String currentLine) {
+    if (org.apache.tools.ant.util.StringUtils.endsWith(buf, delimiter)) {
+      return buf.length() - delimiter.length();
+    }
+    // no match
+    return -1;
+}
 
   public static synchronized String runScriptFileIfShouldReturnString(String connectionName, File scriptFile, boolean runScript) {
     
@@ -818,31 +917,36 @@ public class GrouperDdlUtils {
     System.setErr(newOutErr);
     System.setOut(newOutErr);
     
-    SQLExec sqlExec = new SQLExec();
     
-    sqlExec.setSrc(scriptFile);
-    
-    sqlExec.setDriver(GrouperDdlUtils.convertUrlToDriverClassIfNeeded(grouperDb.getUrl(), grouperDb.getDriver()));
+//    SQLExec sqlExec = new SQLExec();
+//    
+//    sqlExec.setSrc(scriptFile);
+//    
+//    sqlExec.setDriver(GrouperDdlUtils.convertUrlToDriverClassIfNeeded(grouperDb.getUrl(), grouperDb.getDriver()));
+// 
+//    sqlExec.setUrl(grouperDb.getUrl());
+//    sqlExec.setUserid(grouperDb.getUser());
+//    sqlExec.setPassword(grouperDb.getPass());
  
-    sqlExec.setUrl(grouperDb.getUrl());
-    sqlExec.setUserid(grouperDb.getUser());
-    sqlExec.setPassword(grouperDb.getPass());
- 
-    Project project = new GrouperAntProject();
+//    Project project = new GrouperAntProject();
  
     //tell output where to go
-    DefaultLogger defaultLogger = new DefaultLogger();
-    defaultLogger.setErrorPrintStream(newOutErr);
-    defaultLogger.setOutputPrintStream(newOutErr);
-    project.addBuildListener(defaultLogger);
+//    DefaultLogger defaultLogger = new DefaultLogger();
+//    defaultLogger.setErrorPrintStream(newOutErr);
+//    defaultLogger.setOutputPrintStream(newOutErr);
+//    project.addBuildListener(defaultLogger);
     
     try {
-      sqlExec.setProject(project);
- 
-      sqlExec.execute();
+      InputStream inputStream = new FileInputStream(scriptFile);
+      InputStreamReader reader = new InputStreamReader(inputStream);
+      runStatements(reader, out);
+//      sqlExec.setProject(project);
+// 
+//      sqlExec.execute();
  
       logMessage += "Script was executed successfully\n";
     } catch (Exception e) {
+      newOutErr.print(e.getMessage());      
       throw new RuntimeException("Error running script", e);
     } finally {
     
@@ -3066,7 +3170,83 @@ public class GrouperDdlUtils {
     }
   }
   
-  public static boolean doesFunctionExistOracle(String functionName) {
+  public static boolean doesFunctionExist(String functionName) {
+    if (isPostgres()) {
+      return doesFunctionExistPostgres(functionName);
+    } else if (isOracle()) {
+      return doesFunctionExistOracle(functionName);
+    } else if (isMysql()) {
+      return doesFunctionExistMySql(functionName);
+    } else {
+      throw new RuntimeException("Unknown database");
+    }
+  }
+  
+  private static boolean doesFunctionExistPostgres(String functionName) {
+    if (!GrouperDdlUtils.isPostgres()) {
+      throw new RuntimeException("Database not postgres!");
+    }
+    
+    GrouperLoaderDb grouperDb = GrouperLoaderConfig.retrieveDbProfile("grouper");
+    Connection connection = null;
+    PreparedStatement preparedStatement = null;
+    ResultSet resultSet = null;
+    try {
+      connection = grouperDb.connection();
+      preparedStatement = connection.prepareStatement("SELECT count(*) as count FROM information_schema.routines WHERE "
+          + "routine_type = 'FUNCTION' AND routine_schema = current_schema and routine_name = ?");
+      preparedStatement.setString(1, functionName);
+      resultSet = preparedStatement.executeQuery();
+      resultSet.next();
+      int count = resultSet.getInt(1);
+      
+      if (count == 0) {
+        return false;
+      }
+      
+      return true;
+    } catch (SQLException e) {
+      throw new RuntimeException(e);
+    } finally {
+      GrouperUtil.closeQuietly(resultSet);
+      GrouperUtil.closeQuietly(preparedStatement);
+      GrouperUtil.closeQuietly(connection);
+    }
+  }
+  
+  private static boolean doesFunctionExistMySql(String functionName) {
+    if (!GrouperDdlUtils.isPostgres()) {
+      throw new RuntimeException("Database not postgres!");
+    }
+    
+    GrouperLoaderDb grouperDb = GrouperLoaderConfig.retrieveDbProfile("grouper");
+    Connection connection = null;
+    PreparedStatement preparedStatement = null;
+    ResultSet resultSet = null;
+    try {
+      connection = grouperDb.connection();
+      preparedStatement = connection.prepareStatement("SELECT count(*) as count FROM information_schema.routines WHERE "
+          + "routine_type = 'FUNCTION' AND ROUTINE_SCHEMA = database() and routine_name = ?");
+      preparedStatement.setString(1, functionName);
+      resultSet = preparedStatement.executeQuery();
+      resultSet.next();
+      int count = resultSet.getInt(1);
+      
+      if (count == 0) {
+        return false;
+      }
+      
+      return true;
+    } catch (SQLException e) {
+      throw new RuntimeException(e);
+    } finally {
+      GrouperUtil.closeQuietly(resultSet);
+      GrouperUtil.closeQuietly(preparedStatement);
+      GrouperUtil.closeQuietly(connection);
+    }
+  }
+  
+  private static boolean doesFunctionExistOracle(String functionName) {
     if (!GrouperDdlUtils.isOracle()) {
       throw new RuntimeException("Database not oracle!");
     }

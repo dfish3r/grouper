@@ -10,6 +10,31 @@ CREATE TABLE grouper_ddl
 
 CREATE UNIQUE INDEX grouper_ddl_object_name_idx ON grouper_ddl (object_name);
 
+CREATE FUNCTION grouper_to_timestamp(input IN NUMBER)
+  RETURN TIMESTAMP IS
+      timestamp_value NUMBER;
+  BEGIN
+    IF input > 100000000000000 THEN
+      timestamp_value := input / 1000000;
+    ELSE
+      timestamp_value := input / 1000;
+    END IF;
+  RETURN (timestamp '1970-01-01 00:00:00.000 UTC' + numtodsinterval(timestamp_value,'SECOND')) AT TIME ZONE SESSIONTIMEZONE;
+ END; -- function
+ 
+
+CREATE FUNCTION grouper_to_timestamp_utc(input IN NUMBER)
+  RETURN TIMESTAMP IS
+    timestamp_value NUMBER;
+  BEGIN
+    IF input > 100000000000000 THEN
+      timestamp_value := input / 1000000;
+    ELSE
+      timestamp_value := input / 1000;
+    END IF;
+    RETURN (timestamp '1970-01-01 00:00:00.000 UTC' + numtodsinterval(timestamp_value,'SECOND')) AT TIME ZONE 'UTC';
+ END; -- function
+
 CREATE TABLE grouper_composites
 (
     id VARCHAR2(40) NOT NULL,
@@ -2736,7 +2761,7 @@ alter table grouper_sync_dep_group_group
   
 alter table grouper_sync_dep_group_group
     add CONSTRAINT grouper_sync_dep_grp_grp_fk_3 FOREIGN KEY (grouper_sync_id) REFERENCES grouper_sync(id);    
-
+    
 COMMENT ON COLUMN grouper_members.subject_identifier0 IS 'subject identifier of the subject';
 
 COMMENT ON COLUMN grouper_members.subject_identifier1 IS 'subject identifier of the subject';

@@ -189,6 +189,7 @@ public class GrouperDdlCompare {
       addTablesFromJava(javaDatabase);
     }
 
+    analyzeFunctions(objectName);
     analyzeTables();
     analyzeViews();
     
@@ -203,6 +204,23 @@ public class GrouperDdlCompare {
 //      System.out.println(grouperDdlCompareView.getName());
 //    }
     
+  }
+  
+  private void analyzeFunctions(String objectName) {
+    if (!StringUtils.equalsIgnoreCase(objectName, "Grouper")) {
+      return;
+    }
+    analyzeFunction("grouper_to_timestamp");
+    analyzeFunction("grouper_to_timestamp_utc");
+  }
+  
+  private void analyzeFunction(String functionName) {
+    if (!GrouperDdlUtils.doesFunctionExist(functionName)) {
+      this.result.getResult().append("ERROR: Function '"+ functionName +"' does not exist.\n");
+      this.result.errorIncrement();      
+    } else {
+      this.result.getResult().append("Success: Function '"+ functionName + "' exists.\n");
+    }
   }
 
   private void analyzeTables() {

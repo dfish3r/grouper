@@ -10,6 +10,31 @@ CREATE TABLE grouper_ddl
 
 CREATE UNIQUE INDEX grouper_ddl_object_name_idx ON grouper_ddl (object_name);
 
+CREATE FUNCTION grouper_to_timestamp(bigint) RETURNS timestamp AS $$
+  DECLARE
+      timestamp_value bigint;
+  BEGIN
+      timestamp_value := CASE
+          WHEN $1 > 100000000000000 THEN $1 / 1000000
+          ELSE $1 / 1000
+      END;
+      RETURN to_timestamp(timestamp_value);
+  END;
+$$ LANGUAGE plpgsql IMMUTABLE RETURNS NULL ON NULL INPUT;
+
+
+CREATE FUNCTION grouper_to_timestamp_utc(bigint) RETURNS timestamp AS $$
+  DECLARE
+      timestamp_value bigint;
+  BEGIN
+      timestamp_value := CASE
+          WHEN $1 > 100000000000000 THEN $1 / 1000000
+          ELSE $1 / 1000
+      END;
+      RETURN to_timestamp(timestamp_value) AT TIME ZONE 'UTC';
+  END;
+$$ LANGUAGE plpgsql IMMUTABLE RETURNS NULL ON NULL INPUT;
+
 CREATE TABLE grouper_composites
 (
     id VARCHAR(40) NOT NULL,
@@ -2732,7 +2757,7 @@ ALTER TABLE grouper_sql_cache_group ADD CONSTRAINT grouper_sql_cache_group1_fk F
 ALTER TABLE grouper_sql_cache_mship ADD CONSTRAINT grouper_sql_cache_mship1_fk FOREIGN KEY (sql_cache_group_internal_id) REFERENCES grouper_sql_cache_group(internal_id);
 
 ALTER TABLE grouper_sql_cache_mship_hst ADD CONSTRAINT grouper_sql_cache_msh_hst1_fk FOREIGN KEY (sql_cache_group_internal_id) REFERENCES grouper_sql_cache_group (internal_id);
-   
+
 COMMENT ON COLUMN grouper_members.subject_identifier0 IS 'subject identifier of the subject';
 
 COMMENT ON COLUMN grouper_members.subject_identifier1 IS 'subject identifier of the subject';

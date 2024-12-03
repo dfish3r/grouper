@@ -8,8 +8,6 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
@@ -24,7 +22,6 @@ import edu.internet2.middleware.grouper.app.gsh.GrouperShell;
 import edu.internet2.middleware.grouper.app.loader.GrouperLoaderConfig;
 import edu.internet2.middleware.grouper.app.loader.db.GrouperLoaderDb;
 import edu.internet2.middleware.grouper.app.loader.db.Hib3GrouperDdlWorker;
-import edu.internet2.middleware.grouper.app.upgradeTasks.UpgradeTasks;
 import edu.internet2.middleware.grouper.app.upgradeTasks.UpgradeTasksJob;
 import edu.internet2.middleware.grouper.attr.AttributeDef;
 import edu.internet2.middleware.grouper.audit.AuditTypeFinder;
@@ -481,18 +478,12 @@ public class GrouperDdlEngine {
       }
 
       if ("Grouper".equals(objectName)) {
-        if (GrouperDdlUtils.isOracle()) {
-          if (GrouperDdlUtils.doesFunctionExistOracle("grouper_to_timestamp")) {
-            result.append("drop function grouper_to_timestamp;\n\n");
-          }
-          
-          if (GrouperDdlUtils.doesFunctionExistOracle("grouper_to_timestamp_utc")) {
-            result.append("drop function grouper_to_timestamp_utc;\n\n");
-          }
-        } else {
-          // if exists doesn't work on oracle 19
-          result.append("drop function if exists grouper_to_timestamp;\n\n");
-          result.append("drop function if exists grouper_to_timestamp_utc;\n\n");
+        if (GrouperDdlUtils.doesFunctionExist("grouper_to_timestamp")) {
+          result.append("drop function grouper_to_timestamp;\n\n");
+        }
+        
+        if (GrouperDdlUtils.doesFunctionExist("grouper_to_timestamp_utc")) {
+          result.append("drop function grouper_to_timestamp_utc;\n\n");
         }
       }
 
@@ -914,26 +905,25 @@ public class GrouperDdlEngine {
       
       return;
     }
-        
-    AttributeDef upgradeTasksAttributeDef = UpgradeTasksJob.grouperUpgradeTasksAttributeDef();
-    if (!upgradeTasksAttributeDef.isMultiValued()) {
-      int currentDbVersion = UpgradeTasksJob.getDBVersion();
-      upgradeTasksAttributeDef.setMultiValued(true);
-      upgradeTasksAttributeDef.store();
-      
-      String groupName = UpgradeTasksJob.grouperUpgradeTasksStemName() + ":" + UpgradeTasksJob.UPGRADE_TASKS_METADATA_GROUP;
-      Group group = GroupFinder.findByName(GrouperSession.staticGrouperSession(), groupName, true);
-      String upgradeTasksVersionName = UpgradeTasksJob.grouperUpgradeTasksStemName() + ":" + UpgradeTasksJob.UPGRADE_TASKS_VERSION_ATTR;
-      
-      for (int i=1; i < currentDbVersion; i++) {
-        if (i > 9) {
-          break;
-        }
-        group.getAttributeValueDelegate().addValue(upgradeTasksVersionName, "" + i);
-      }
-    }
-    
     try {
+      AttributeDef upgradeTasksAttributeDef = UpgradeTasksJob.grouperUpgradeTasksAttributeDef();
+      if (!upgradeTasksAttributeDef.isMultiValued()) {
+        int currentDbVersion = UpgradeTasksJob.getDBVersion();
+        upgradeTasksAttributeDef.setMultiValued(true);
+        upgradeTasksAttributeDef.store();
+        
+        String groupName = UpgradeTasksJob.grouperUpgradeTasksStemName() + ":" + UpgradeTasksJob.UPGRADE_TASKS_METADATA_GROUP;
+        Group group = GroupFinder.findByName(GrouperSession.staticGrouperSession(), groupName, true);
+        String upgradeTasksVersionName = UpgradeTasksJob.grouperUpgradeTasksStemName() + ":" + UpgradeTasksJob.UPGRADE_TASKS_VERSION_ATTR;
+        
+        for (int i=1; i < currentDbVersion; i++) {
+          if (i > 9) {
+            break;
+          }
+          group.getAttributeValueDelegate().addValue(upgradeTasksVersionName, "" + i);
+        }
+      }
+    
       // see if there are upgrade tasks to run
       String jobMessageOptional = UpgradeTasksJob.runDaemonStandalone();
       if (StringUtils.isNotBlank(jobMessageOptional)) {
