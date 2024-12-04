@@ -768,25 +768,19 @@ public class SqlCacheFullSyncDaemon extends OtherJobBase {
     }
     
     if (sqlCacheGroupIdsForMembershipSizeUpdate.size() > 0) {
-      gcDbAccess = new GcDbAccess();
-
-      //new GcDbAccess().sql("update grouper_sql_cache_group set membership_size = ? where internal_id = ?").batchBindVars(bindVarsSqlCacheGroupMembershipSizeUpdate).executeBatchSql();
-      StringBuilder sql = new StringBuilder("update grouper_sql_cache_group gscg set membership_size = (select count(*) from grouper_sql_cache_mship gscm where gscg.internal_id=gscm.sql_cache_group_internal_id) where ");
-      
-      isFirst = true;
       for (Long id : sqlCacheGroupIdsForMembershipSizeUpdate) {
-        if (!isFirst) {
-          sql.append(" or ");
-        }
-        sql.append(" internal_id = ? ");
+        gcDbAccess = new GcDbAccess();
+
+        StringBuilder sql = new StringBuilder("update grouper_sql_cache_group gscg set membership_size = (select count(*) from grouper_sql_cache_mship gscm where gscm.sql_cache_group_internal_id = ?) where gscg.internal_id = ?");
+        
         gcDbAccess.addBindVar(id);
-        isFirst = false;
-      }
-      
-      int count = gcDbAccess.sql(sql.toString()).executeSql();
-      
-      if (theOtherJobInput != null) {
-        theOtherJobInput.getHib3GrouperLoaderLog().addUpdateCount(count);
+        gcDbAccess.addBindVar(id);
+        
+        gcDbAccess.sql(sql.toString()).executeSql();
+        
+        if (theOtherJobInput != null) {
+          theOtherJobInput.getHib3GrouperLoaderLog().addUpdateCount(1);
+        }
       }
     }
   }
