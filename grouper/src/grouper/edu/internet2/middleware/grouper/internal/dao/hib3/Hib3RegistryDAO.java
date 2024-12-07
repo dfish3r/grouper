@@ -92,6 +92,8 @@ class Hib3RegistryDAO implements RegistryDAO {
             new GcDbAccess().sql("delete from grouper_sql_cache_mship_hst").executeSql();
             new GcDbAccess().sql("delete from grouper_sql_cache_mship").executeSql();
             new GcDbAccess().sql("delete from grouper_sql_cache_group").executeSql();
+            new GcDbAccess().sql("delete from grouper_sql_cache_dependency").executeSql();
+            new GcDbAccess().sql("delete from grouper_sql_cache_depend_type").executeSql();
 
             new GcDbAccess().sql("delete from grouper_failsafe").executeSql();
             new GcDbAccess().sql("delete from grouper_last_login").executeSql();

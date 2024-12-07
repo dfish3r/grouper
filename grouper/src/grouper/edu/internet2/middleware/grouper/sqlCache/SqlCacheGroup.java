@@ -1,7 +1,12 @@
 package edu.internet2.middleware.grouper.sqlCache;
 
 import java.sql.Timestamp;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
+import edu.internet2.middleware.grouper.Field;
+import edu.internet2.middleware.grouper.FieldFinder;
 import edu.internet2.middleware.grouper.cfg.GrouperConfig;
 import edu.internet2.middleware.grouper.dictionary.GrouperDictionary;
 import edu.internet2.middleware.grouper.tableIndex.TableIndex;
@@ -155,6 +160,45 @@ public class SqlCacheGroup implements GcSqlAssignPrimaryKey, GcDbVersionable {
       return attributeDefFolderName() + ":" + SqlCacheGroup.sqlCacheableHistoryStemAttrUpdatersAttributeExtension;
   }
   
+  private static Map<String, Field> sqlCacheHistoryAttributesToFields = null;
+  
+  public static Map<String, Field> getSqlCacheHistoryAttributeNamesToFields() {
+    if (sqlCacheHistoryAttributesToFields == null) {
+      synchronized(SqlCacheGroup.class) {
+        if (sqlCacheHistoryAttributesToFields == null) {
+          Map<String, Field> temp = new HashMap<>();
+          temp.put(sqlCacheableHistoryGroupMembersAttributeName(), FieldFinder.find("members", true));
+          temp.put(sqlCacheableHistoryGroupAdminsAttributeName(), FieldFinder.find("admins", true));
+          temp.put(sqlCacheableHistoryGroupOptoutsAttributeName(), FieldFinder.find("optouts", true));
+          temp.put(sqlCacheableHistoryGroupOptinsAttributeName(), FieldFinder.find("optins", true));
+          temp.put(sqlCacheableHistoryGroupReadersAttributeName(), FieldFinder.find("readers", true));
+          temp.put(sqlCacheableHistoryGroupUpdatersAttributeName(), FieldFinder.find("updaters", true));
+          temp.put(sqlCacheableHistoryGroupViewersAttributeName(), FieldFinder.find("viewers", true));
+          temp.put(sqlCacheableHistoryGroupAttrReadersAttributeName(), FieldFinder.find("groupAttrReaders", true));
+          temp.put(sqlCacheableHistoryGroupAttrUpdatersAttributeName(), FieldFinder.find("groupAttrUpdaters", true));
+          
+          temp.put(sqlCacheableHistoryAttributeDefAdminsAttributeName(), FieldFinder.find("attrAdmins", true));
+          temp.put(sqlCacheableHistoryAttributeDefOptoutsAttributeName(), FieldFinder.find("attrOptouts", true));
+          temp.put(sqlCacheableHistoryAttributeDefOptinsAttributeName(), FieldFinder.find("attrOptins", true));
+          temp.put(sqlCacheableHistoryAttributeDefReadersAttributeName(), FieldFinder.find("attrReaders", true));
+          temp.put(sqlCacheableHistoryAttributeDefUpdatersAttributeName(), FieldFinder.find("attrUpdaters", true));
+          temp.put(sqlCacheableHistoryAttributeDefViewersAttributeName(), FieldFinder.find("attrViewers", true));
+          temp.put(sqlCacheableHistoryAttributeDefAttrReadersAttributeName(), FieldFinder.find("attrDefAttrReaders", true));
+          temp.put(sqlCacheableHistoryAttributeDefAttrUpdatersAttributeName(), FieldFinder.find("attrDefAttrUpdaters", true));
+
+          temp.put(sqlCacheableHistoryStemCreatorsAttributeName(), FieldFinder.find("creators", true));
+          temp.put(sqlCacheableHistoryStemAdminsAttributeName(), FieldFinder.find("stemAdmins", true));
+          temp.put(sqlCacheableHistoryStemViewersAttributeName(), FieldFinder.find("stemViewers", true));
+          temp.put(sqlCacheableHistoryStemAttrReadersAttributeName(), FieldFinder.find("stemAttrReaders", true));
+          temp.put(sqlCacheableHistoryStemAttrUpdatersAttributeName(), FieldFinder.find("stemAttrUpdaters", true));
+        
+          sqlCacheHistoryAttributesToFields = temp;
+        }
+      }
+    }
+    
+    return Collections.unmodifiableMap(sqlCacheHistoryAttributesToFields);
+  }
 
   public SqlCacheGroup getDbVersion() {
     return this.dbVersion;

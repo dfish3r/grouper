@@ -1,6 +1,8 @@
 package edu.internet2.middleware.grouper.sqlCache;
 
+import java.sql.Connection;
 import java.util.Collection;
+import java.util.List;
 
 import edu.internet2.middleware.grouper.util.GrouperUtil;
 import edu.internet2.middleware.grouperClient.jdbc.GcDbAccess;
@@ -30,15 +32,19 @@ public class SqlCacheDependencyDao {
   /**
    * @return number of changes
    */
-  public static int store(Collection<SqlCacheDependency> sqlCacheDependencies) {
+  public static int store(Collection<SqlCacheDependency> sqlCacheDependencies, Connection connection, boolean isInsert, boolean retryBatchStoreFailures, boolean ignoreRetriedBatchStoreFailures) {
     if (GrouperUtil.length(sqlCacheDependencies) == 0) {
       return 0;
     }
     for (SqlCacheDependency sqlCacheDependency : sqlCacheDependencies) {
       sqlCacheDependency.storePrepare();
     }
-    int batchSize = GrouperClientConfig.retrieveConfig().propertyValueInt("grouperClient.syncTableDefault.maxBindVarsInSelect", 900);
-    return new GcDbAccess().storeBatchToDatabase(sqlCacheDependencies, batchSize);
+    int batchSize = GrouperClientConfig.retrieveConfig().propertyValueInt("grouperClient.syncTableDefault.maxBindVarsInSelect", 900);    
+    return new GcDbAccess().connection(connection)
+        .isInsert(isInsert)
+        .retryBatchStoreFailures(retryBatchStoreFailures)
+        .ignoreRetriedBatchStoreFailures(ignoreRetriedBatchStoreFailures)
+        .storeBatchToDatabase(sqlCacheDependencies, batchSize);
   }
 
   /**
@@ -52,6 +58,16 @@ public class SqlCacheDependencyDao {
     return sqlCacheDependency;
   }
   
+  /**
+   * select by dependency type internal id
+   * @param dependencyTypeInternalId
+   * @return the sql cache dependencies
+   */
+  public static List<SqlCacheDependency> retrieveByDependencyTypeInternalId(Long dependencyTypeInternalId) {
+    List<SqlCacheDependency> sqlCacheDependencies = new GcDbAccess()
+        .sql("select * from grouper_sql_cache_dependency where dep_type_internal_id = ?").addBindVar(dependencyTypeInternalId).selectList(SqlCacheDependency.class);
+    return sqlCacheDependencies;
+  }
 
   /**
    * 

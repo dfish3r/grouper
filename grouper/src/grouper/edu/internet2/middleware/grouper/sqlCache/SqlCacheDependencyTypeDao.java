@@ -59,13 +59,28 @@ public class SqlCacheDependencyTypeDao {
   
   /**
    * select by dependency category
-   * @param id
+   * @param dependencyCategory
    * @return the sql cache dependency types
    */
   public static List<SqlCacheDependencyType> retrieveByDependencyCategory(String dependencyCategory) {
     List<SqlCacheDependencyType> sqlCacheDependencyTypes = new GcDbAccess()
         .sql("select * from grouper_sql_cache_depend_type where dependency_category = ?").addBindVar(dependencyCategory).selectList(SqlCacheDependencyType.class);
     return sqlCacheDependencyTypes;
+  }
+  
+  /**
+   * select by dependency category and name
+   * @param dependencyCategory
+   * @param name
+   * @return the sql cache dependency type
+   */
+  public static SqlCacheDependencyType retrieveByDependencyCategoryAndName(String dependencyCategory, String name) {
+    SqlCacheDependencyType sqlCacheDependencyType = new GcDbAccess()
+        .sql("select * from grouper_sql_cache_depend_type where dependency_category = ? and name = ?")
+        .addBindVar(dependencyCategory).addBindVar(name)
+        .select(SqlCacheDependencyType.class);
+    
+    return sqlCacheDependencyType;
   }
   
 

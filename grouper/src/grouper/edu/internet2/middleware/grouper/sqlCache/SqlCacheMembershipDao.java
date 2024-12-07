@@ -239,6 +239,7 @@ public class SqlCacheMembershipDao {
     
     List<List<Object>> bindVarsAll = new ArrayList<>();
     Set<SqlCacheGroup> sqlCacheGroupsToUpdate = new HashSet<>();
+    //Set<MultiKey> sqlCacheGroupInternalIdsMemberInternalIds = new HashSet<>();
 
     for (MultiKey ownerNameFieldNameSourceIdSubjectIdStartedMilli : ownerNameFieldNameSourceIdSubjectIdList) {
 
@@ -267,16 +268,37 @@ public class SqlCacheMembershipDao {
       }
       
       bindVarsAll.add(GrouperUtil.toListObject(memberInternalId, sqlCacheGroup.getInternalId()));
+      //sqlCacheGroupInternalIdsMemberInternalIds.add(new MultiKey(sqlCacheGroup.getInternalId(), memberInternalId));
       sqlCacheGroup.setMembershipSize(sqlCacheGroup.getMembershipSize() - 1);
       sqlCacheGroupsToUpdate.add(sqlCacheGroup);
     }   
     
+    //Map<MultiKey, SqlCacheMembership> sqlCacheGroupInternalIdsMemberInternalIdsToSqlCacheMemberships = retrieveByCacheGroupInternalIdsMemberInternalIds(sqlCacheGroupInternalIdsMemberInternalIds, connection);
+    
+    // delete cache memberships
     int batchSize = GrouperClientConfig.retrieveConfig().propertyValueInt("grouperClient.syncTableDefault.maxBindVarsInSelect", 900);
-
+    
     new GcDbAccess().connection(connection).batchSize(batchSize).sql("delete from grouper_sql_cache_mship where member_internal_id = ? and sql_cache_group_internal_id = ?")
       .batchBindVars(bindVarsAll).executeBatchSql();
 
+    // update group counts
     SqlCacheGroupDao.store(sqlCacheGroupsToUpdate, connection, false);
+    
+    // add cache membership history
+    //Set<SqlCacheMembershipHst> sqlCacheMembershipHstsToAdd = new HashSet<>();
+    //for (MultiKey multiKey : sqlCacheGroupInternalIdsMemberInternalIdsToSqlCacheMemberships.keySet()) {
+    //  SqlCacheMembership sqlCacheMembershipDeleted = sqlCacheGroupInternalIdsMemberInternalIdsToSqlCacheMemberships.get(multiKey);
+    //  
+    //  SqlCacheMembershipHst sqlCacheMembershipHst = new SqlCacheMembershipHst();
+    //  sqlCacheMembershipHst.setSqlCacheGroupInternalId(sqlCacheMembershipDeleted.getSqlCacheGroupInternalId());
+    //  sqlCacheMembershipHst.setMemberInternalId(sqlCacheMembershipDeleted.getMemberInternalId());
+    //  sqlCacheMembershipHst.setStartTime(sqlCacheMembershipDeleted.getFlattenedAddTimestamp());
+    //  sqlCacheMembershipHst.setEndTime(sqlCacheMembershipDeleted.getFlattenedAddTimestamp()); // TODO need to probably get end time from change log temp
+    //  
+    //  sqlCacheMembershipHstsToAdd.add(sqlCacheMembershipHst);
+    //}
+    //
+    //SqlCacheMembershipHstDao.store(sqlCacheMembershipHstsToAdd, connection, false);
 
     return bindVarsAll.size();
   }
@@ -299,6 +321,7 @@ public class SqlCacheMembershipDao {
    * @param groupNamesFieldNamesSourceIdsSubjectIds
    * @return the caches if they exist by groupName and fieldName and source ids and subject ids
    */
+  /*
   public static Map<MultiKey, SqlCacheMembership> retrieveByGroupNamesFieldNamesSourceIdsSubjectIds(Collection<MultiKey> groupNamesFieldNamesSourceIdsSubjectIds) {
     
     Map<MultiKey, SqlCacheMembership> result = new HashMap<>();
@@ -354,6 +377,7 @@ public class SqlCacheMembershipDao {
 
     return result;
   }
+  */
   
   /**
    * @param sqlCacheMemberships
@@ -388,9 +412,10 @@ public class SqlCacheMembershipDao {
   /**
    * select caches by cache group internal ids and member internal ids
    * @param cacheGroupInternalIdsMemberInternalIds
+   * @param connection
    * @return the caches if they exist 
    */
-  public static Map<MultiKey, SqlCacheMembership> retrieveByCacheGroupInternalIdsMemberInternalIds(Collection<MultiKey> cacheGroupInternalIdsMemberInternalIds) {
+  public static Map<MultiKey, SqlCacheMembership> retrieveByCacheGroupInternalIdsMemberInternalIds(Collection<MultiKey> cacheGroupInternalIdsMemberInternalIds, Connection connection) {
     
     Map<MultiKey, SqlCacheMembership> result = new HashMap<>();
 
@@ -410,16 +435,16 @@ public class SqlCacheMembershipDao {
       
       StringBuilder sql = new StringBuilder("select * from grouper_sql_cache_mship where ");
       
-      GcDbAccess gcDbAccess = new GcDbAccess();
+      GcDbAccess gcDbAccess = new GcDbAccess().connection(connection);
       
       for (int i=0;i<batchOfCacheGroupInternalIdMemberInternalIdList.size();i++) {
         if (i>0) {
           sql.append(" or ");
         }
-        sql.append(" ( cache_group_internal_id = ? and member_internal_id = ? ) ");
+        sql.append(" ( member_internal_id = ? and sql_cache_group_internal_id = ? ) ");
         MultiKey cacheGroupInternalIdMemberInternalId = batchOfCacheGroupInternalIdMemberInternalIdList.get(i);
-        gcDbAccess.addBindVar(cacheGroupInternalIdMemberInternalId.getKey(0));
         gcDbAccess.addBindVar(cacheGroupInternalIdMemberInternalId.getKey(1));
+        gcDbAccess.addBindVar(cacheGroupInternalIdMemberInternalId.getKey(0));
       }
       
       List<SqlCacheMembership> sqlCacheMemberships = gcDbAccess.sql(sql.toString()).selectList(SqlCacheMembership.class);
@@ -431,48 +456,4 @@ public class SqlCacheMembershipDao {
     }
     return result;
   }
-
-  /**
-   * retrieve cache group by group name field name or created
-   * @param sqlCacheMemberships
-   */
-  public static void retrieveOrCreateBySqlMembershipCache(Collection<SqlCacheMembership> sqlCacheMemberships) {
-    
-    if (GrouperUtil.length(sqlCacheMemberships) == 0) {
-      return;
-    }
-    Set<MultiKey> cacheGroupInternalIdsMemberInternalIds = new HashSet<>();
-    
-    for (SqlCacheMembership sqlCacheMembership : sqlCacheMemberships) {
-      cacheGroupInternalIdsMemberInternalIds.add(new MultiKey(sqlCacheMembership.getSqlCacheGroupInternalId(), sqlCacheMembership.getMemberInternalId()));
-    }
-    
-    Map<MultiKey, SqlCacheMembership> existingGroupInternalIdsFieldInternalIdsToCacheMemberships = retrieveByCacheGroupInternalIdsMemberInternalIds(cacheGroupInternalIdsMemberInternalIds);
-    
-    List<SqlCacheMembership> sqlCacheMembershipsToCreate = new ArrayList<SqlCacheMembership>();
-    
-    for (SqlCacheMembership sqlCacheMembership : sqlCacheMemberships) {
-      SqlCacheMembership existingCacheMembership = existingGroupInternalIdsFieldInternalIdsToCacheMemberships.get(new MultiKey(sqlCacheMembership.getSqlCacheGroupInternalId(), sqlCacheMembership.getMemberInternalId()));
-      if (existingCacheMembership == null) {
-        sqlCacheMembershipsToCreate.add(sqlCacheMembership);
-      }
-    }
-
-    if (sqlCacheMembershipsToCreate.size() == 0) {
-      return;
-    }
-
-    for (int i=0; i < sqlCacheMembershipsToCreate.size(); i++) {
-      SqlCacheMembership sqlCacheMembership = sqlCacheMembershipsToCreate.get(i);
-      sqlCacheMembership.storePrepare();
-    }
-
-    int defaultBatchSize = GrouperClientConfig.retrieveConfig().propertyValueInt("grouperClient.syncTableDefault.batchSize", 1000);
-
-    new GcDbAccess().storeBatchToDatabase(sqlCacheMembershipsToCreate, defaultBatchSize);
-    
-  }
-  
-
-
 }

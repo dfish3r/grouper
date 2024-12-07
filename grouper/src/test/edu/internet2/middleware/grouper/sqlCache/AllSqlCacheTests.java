@@ -23,6 +23,7 @@ public class AllSqlCacheTests extends TestCase {
     suite.addTestSuite(SqlCacheGroupDaoTest.class);
     suite.addTestSuite(SqlCacheMembershipDaoTest.class);
     suite.addTestSuite(SqlCacheMembershipTest.class);
+    suite.addTestSuite(SqlCacheMembershipHstTest.class);
     //$JUnit-END$
     return suite;
   }

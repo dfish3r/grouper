@@ -323,6 +323,20 @@ public class SqlCacheGroupDao {
     }
     return result;
   }
+  
+  /**
+   * @param groupInternalId
+   * @param fieldInternalId
+   * @param connection optionally pass connection to use
+   * @return the cache if it exist 
+   */
+  public static SqlCacheGroup retrieveByGroupInternalIdFieldInternalId(long groupInternalId, long fieldInternalId, Connection connection) {
+    GcDbAccess gcDbAccess = new GcDbAccess().connection(connection);
+    return gcDbAccess.sql("select * from grouper_sql_cache_group where group_internal_id = ? and field_internal_id = ?")
+      .addBindVar(groupInternalId)
+      .addBindVar(fieldInternalId)
+      .select(SqlCacheGroup.class);
+  }
 
   /**
    * retrieve cache group by group name field name or created

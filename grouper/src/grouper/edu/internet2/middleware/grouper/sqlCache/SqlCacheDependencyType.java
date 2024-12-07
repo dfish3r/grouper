@@ -208,4 +208,11 @@ public class SqlCacheDependencyType implements GcSqlAssignPrimaryKey, GcDbVersio
   public String toString() {
     return GrouperClientUtils.toStringReflection(this, null);
   }
+  
+  /**
+   * @return internalId
+   */
+  public Long getInternalId() {
+    return this.internalId;
+  }
 }
